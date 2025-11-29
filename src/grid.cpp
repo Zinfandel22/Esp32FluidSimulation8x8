@@ -59,15 +59,15 @@ InterpolationData Grid::getInterpolationData(Particle* particle, VelocityCompone
   particle_pos_y = utils::clamp(particle_pos_y, cell_size, (size_y - 1) * cell_size);
 
   // determine which cell (within the staggered velocity grid)
-  uint16_t velocities_grid_cell_x = particle_pos_x / cell_size;
-  uint16_t velocities_grid_cell_y = particle_pos_y / cell_size;
+  uint16_t velocities_grid_cell_i = particle_pos_x / cell_size;
+  uint16_t velocities_grid_cell_j = particle_pos_y / cell_size;
   // clamp cell indices so +1 never exceeds bounds
-  velocities_grid_cell_x = utils::clamp(velocities_grid_cell_x, 0, size_x - 2);
-  velocities_grid_cell_y = utils::clamp(velocities_grid_cell_y, 0, size_y - 2);
+  velocities_grid_cell_i = utils::clamp(velocities_grid_cell_i, 0, size_x - 2);
+  velocities_grid_cell_j = utils::clamp(velocities_grid_cell_j, 0, size_y - 2);
 
   // calculate where inside the cell the particle is
-  float delta_x = particle_pos_x - velocities_grid_cell_x * cell_size;
-  float delta_y = particle_pos_y - velocities_grid_cell_y * cell_size;
+  float delta_x = particle_pos_x - velocities_grid_cell_i * cell_size;
+  float delta_y = particle_pos_y - velocities_grid_cell_j * cell_size;
 
   // calculate weights
   data.weight1 = (1 - (delta_x / cell_size)) * (1 - (delta_y / cell_size));
@@ -76,12 +76,55 @@ InterpolationData Grid::getInterpolationData(Particle* particle, VelocityCompone
   data.weight4 = (1 - (delta_x / cell_size)) * (delta_y / cell_size);
 
   // find the index of the four grid corners in the 1D array
-  data.index_00 = velocities_grid_cell_x * size_y + velocities_grid_cell_y;              // bottom left
-  data.index_10 = (velocities_grid_cell_x + 1) * size_y + velocities_grid_cell_y;        // bottom right
-  data.index_11 = (velocities_grid_cell_x + 1) * size_y + (velocities_grid_cell_y + 1);  // top right
-  data.index_01 = velocities_grid_cell_x * size_y + (velocities_grid_cell_y + 1);        // top left
+  data.index_00 = velocities_grid_cell_i * size_y + velocities_grid_cell_j;              // bottom left
+  data.index_10 = (velocities_grid_cell_i + 1) * size_y + velocities_grid_cell_j;        // bottom right
+  data.index_11 = (velocities_grid_cell_i + 1) * size_y + (velocities_grid_cell_j + 1);  // top right
+  data.index_01 = velocities_grid_cell_i * size_y + (velocities_grid_cell_j + 1);        // top left
 
   return data;
+}
+
+void Grid::markCellWalls() {
+  // reset all to air
+  for (int i = 0; i < size_x * size_y; i++) {
+    cell_type[i] = grid_cell_t::CELL_AIR;
+  }
+
+  // left wall (i = 0)
+  for (int j = 0; j < size_y; j++) {
+    cell_type[0 * size_y + j] = grid_cell_t::CELL_WALL;
+  }
+
+  // right wall (i = size_x - 1)
+  for (int j = 0; j < size_y; j++) {
+    cell_type[(size_x - 1) * size_y + j] = grid_cell_t::CELL_WALL;
+  }
+
+  // bottom wall (j = 0)
+  for (int i = 0; i < size_x; i++) {
+    cell_type[i * size_y + 0] = grid_cell_t::CELL_WALL;
+  }
+
+  // top wall (j = size_y - 1) -n
+  for (int i = 0; i < size_x; i++) {
+    cell_type[i * size_y + (size_y - 1)] = grid_cell_t::CELL_WALL;
+  }
+}
+
+void Grid::markCellWithLiquid(Particle* particle) {
+  float particle_pos_x = particle->getX();
+  float particle_pos_y = particle->getY();
+
+  // determine which cell contains this particle
+  int cell_i = particle_pos_x / cell_size;
+  int cell_j = particle_pos_y / cell_size;
+  
+  // clamp to valid interior range away from walls
+  cell_i = utils::clamp(cell_i, 1, size_x - 2);
+  cell_j = utils::clamp(cell_j, 1, size_y - 2);
+
+  int cell_1d_index = cell_i * size_y + cell_j;
+  cell_type[cell_1d_index] = grid_cell_t::CELL_LIQUID;
 }
 
 void Grid::transferVelocityfromParticleToGrid(Particle* particle) {
@@ -152,7 +195,7 @@ void Grid::forcingIncompressibility() {
   float sum_s;
   float vx_iplus1_j, vx_i_j, vy_i_jplus1, vy_i_j;
 
-  for (int iter = 0; iter < COMPRENSIBILITY_ITERATIONS; iter++) {
+  for (int iter = 0; iter < INCOMPRESSIBILITY_ITERATIONS; iter++) {
     for (int i = 1; i < size_x - 1; i++) {
       for (int j = 1; j < size_y - 1; j++) {
         index_iplus1_j = (i + 1) * size_y + j;
@@ -184,9 +227,9 @@ void Grid::forcingIncompressibility() {
         if (sum_s == 0) {
           continue;
         }
-        grid_vx[index_i_j] = grid_vx[index_i_j] + (divergence * (s_iminus1_j / sum_s));  // left vx
-        grid_vx[index_iplus1_j] = grid_vx[index_iplus1_j] - (divergence * (s_iplus1_j / sum_s));
-        grid_vy[index_i_j] = grid_vy[index_i_j] + (divergence * (s_i_jminus1 / sum_s));  // bottom vy // right vx
+        grid_vx[index_i_j] = grid_vx[index_i_j] + (divergence * (s_iminus1_j / sum_s));           // left vx
+        grid_vx[index_iplus1_j] = grid_vx[index_iplus1_j] - (divergence * (s_iplus1_j / sum_s));  // bottom vy
+        grid_vy[index_i_j] = grid_vy[index_i_j] + (divergence * (s_i_jminus1 / sum_s));           // right vx
         grid_vy[index_i_jplus1] = grid_vy[index_i_jplus1] - (divergence * (s_i_jplus1 / sum_s));  // top vy
       }
     }

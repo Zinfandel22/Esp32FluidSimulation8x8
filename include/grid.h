@@ -41,9 +41,11 @@ class Grid {
  public:
   Grid();
 
-  
-// compute interpolation weights and indices for specified velocity component
+  // compute interpolation weights and indices for specified velocity component
   InterpolationData getInterpolationData(Particle* particle, VelocityComponent component);
+
+  void markCellWalls();
+  void markCellWithLiquid(Particle* particle);
 
   void transferVelocityfromParticleToGrid(Particle* particle);
   void normalizeGridVelocities();
