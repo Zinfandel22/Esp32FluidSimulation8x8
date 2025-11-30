@@ -39,7 +39,6 @@ Grid::Grid() {
   }
 }
 
-
 void Grid::markCellWalls() {
   // reset all to air
   for (int i = 0; i < size_x * size_y; i++) {
@@ -164,18 +163,16 @@ void Grid::transferVelocityfromParticleToGrid(Particle* particle) {
   float vx_particle_pos_y = py - half_cell;
 
   // clamp particle position to safe range (one cell away from boundaries)
-  if (vx_particle_pos_x < min_pos) vx_particle_pos_x = min_pos;
-  else if (vx_particle_pos_x > max_pos_x) vx_particle_pos_x = max_pos_x;
-  if (vx_particle_pos_y < min_pos) vx_particle_pos_y = min_pos;
-  else if (vx_particle_pos_y > max_pos_y) vx_particle_pos_y = max_pos_y;
+  vx_particle_pos_x = utils::clamp(vx_particle_pos_x, min_pos, max_pos_x);
+  vx_particle_pos_y = utils::clamp(vx_particle_pos_y, min_pos, max_pos_y);
 
   // determine which cell (within the staggered velocity grid)
   int vx_velocities_grid_cell_i = (int)(vx_particle_pos_x * inv_cell_size);
   int vx_velocities_grid_cell_j = (int)(vx_particle_pos_y * inv_cell_size);
 
   // clamp cell indices so +1 never exceeds bounds
-  if (vx_velocities_grid_cell_i > max_cell_i) vx_velocities_grid_cell_i = max_cell_i;
-  if (vx_velocities_grid_cell_j > max_cell_j) vx_velocities_grid_cell_j = max_cell_j;
+  vx_velocities_grid_cell_i = utils::clamp(vx_velocities_grid_cell_i, 0, max_cell_i);
+  vx_velocities_grid_cell_j = utils::clamp(vx_velocities_grid_cell_j, 0, max_cell_j);
 
   // calculate where inside the cell the particle is
   float vx_delta_x = vx_particle_pos_x - vx_velocities_grid_cell_i * cell_size;
@@ -225,18 +222,16 @@ void Grid::transferVelocityfromParticleToGrid(Particle* particle) {
   float vy_particle_pos_y = py;
 
   // clamp particle position to safe range (one cell away from boundaries)
-  if (vy_particle_pos_x < min_pos) vy_particle_pos_x = min_pos;
-  else if (vy_particle_pos_x > max_pos_x) vy_particle_pos_x = max_pos_x;
-  if (vy_particle_pos_y < min_pos) vy_particle_pos_y = min_pos;
-  else if (vy_particle_pos_y > max_pos_y) vy_particle_pos_y = max_pos_y;
+  vy_particle_pos_x = utils::clamp(vy_particle_pos_x, min_pos, max_pos_x);
+  vy_particle_pos_y = utils::clamp(vy_particle_pos_y, min_pos, max_pos_y);
 
   // determine which cell (within the staggered velocity grid)
   int vy_velocities_grid_cell_i = (int)(vy_particle_pos_x * inv_cell_size);
   int vy_velocities_grid_cell_j = (int)(vy_particle_pos_y * inv_cell_size);
 
   // clamp cell indices so +1 never exceeds bounds
-  if (vy_velocities_grid_cell_i > max_cell_i) vy_velocities_grid_cell_i = max_cell_i;
-  if (vy_velocities_grid_cell_j > max_cell_j) vy_velocities_grid_cell_j = max_cell_j;
+  vy_velocities_grid_cell_i = utils::clamp(vy_velocities_grid_cell_i, 0, max_cell_i);
+  vy_velocities_grid_cell_j = utils::clamp(vy_velocities_grid_cell_j, 0, max_cell_j);
 
   // calculate where inside the cell the particle is
   float vy_delta_x = vy_particle_pos_x - vy_velocities_grid_cell_i * cell_size;
@@ -377,18 +372,16 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   float vx_particle_pos_y = py - half_cell;
 
   // clamp particle position to safe range (one cell away from boundaries)
-  if (vx_particle_pos_x < min_pos) vx_particle_pos_x = min_pos;
-  else if (vx_particle_pos_x > max_pos_x) vx_particle_pos_x = max_pos_x;
-  if (vx_particle_pos_y < min_pos) vx_particle_pos_y = min_pos;
-  else if (vx_particle_pos_y > max_pos_y) vx_particle_pos_y = max_pos_y;
+  vx_particle_pos_x = utils::clamp(vx_particle_pos_x, min_pos, max_pos_x);
+  vx_particle_pos_y = utils::clamp(vx_particle_pos_y, min_pos, max_pos_y);
 
   // determine which cell (within the staggered velocity grid)
   int vx_velocities_grid_cell_i = (int)(vx_particle_pos_x * inv_cell_size);
   int vx_velocities_grid_cell_j = (int)(vx_particle_pos_y * inv_cell_size);
 
   // clamp cell indices so +1 never exceeds bounds
-  if (vx_velocities_grid_cell_i > max_cell_i) vx_velocities_grid_cell_i = max_cell_i;
-  if (vx_velocities_grid_cell_j > max_cell_j) vx_velocities_grid_cell_j = max_cell_j;
+  vx_velocities_grid_cell_i = utils::clamp(vx_velocities_grid_cell_i, 0, max_cell_i);
+  vx_velocities_grid_cell_j = utils::clamp(vx_velocities_grid_cell_j, 0, max_cell_j);
 
   // calculate where inside the cell the particle is
   float vx_delta_x = vx_particle_pos_x - vx_velocities_grid_cell_i * cell_size;
@@ -421,37 +414,35 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   // check if each velocity sample is valid
   // a velocity is valid if at least one of the two cells it borders is not air
   // if both cells are air, no fluid ever contributed to that velocity
-  float valid_vx_00 = (cell_type[vx_index_00] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_index_00 - vx_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vx_10 = (cell_type[vx_index_10] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_index_10 - vx_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vx_11 = (cell_type[vx_index_11] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_index_11 - vx_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vx_01 = (cell_type[vx_index_01] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_index_01 - vx_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
+  float valid_vx_00 =
+      (cell_type[vx_index_00] != grid_cell_t::CELL_AIR || cell_type[vx_index_00 - vx_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vx_10 =
+      (cell_type[vx_index_10] != grid_cell_t::CELL_AIR || cell_type[vx_index_10 - vx_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vx_11 =
+      (cell_type[vx_index_11] != grid_cell_t::CELL_AIR || cell_type[vx_index_11 - vx_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vx_01 =
+      (cell_type[vx_index_01] != grid_cell_t::CELL_AIR || cell_type[vx_index_01 - vx_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
 
   // sum of weights from valid samples only
   // we need this because invalid samples are excluded, so weights no longer sum to 1
-  float valid_weight_sum_vx = valid_vx_00 * vx_weight1 + valid_vx_10 * vx_weight2 +
-                              valid_vx_11 * vx_weight3 + valid_vx_01 * vx_weight4;
+  float valid_weight_sum_vx =
+      valid_vx_00 * vx_weight1 + valid_vx_10 * vx_weight2 + valid_vx_11 * vx_weight3 + valid_vx_01 * vx_weight4;
 
   // only update particle if we have valid velocity data to interpolate from
   if (valid_weight_sum_vx > 0.0f) {
     // pic velocity = weighted average of current grid velocities
     // each term is multiplied by validity (0 or 1) to exclude air-only samples
     // divide by valid weight sum to get proper weighted average
-    float pic_vx = (valid_vx_00 * vx_weight1 * grid_vx[vx_index_00] +
-                    valid_vx_10 * vx_weight2 * grid_vx[vx_index_10] +
-                    valid_vx_11 * vx_weight3 * grid_vx[vx_index_11] +
-                    valid_vx_01 * vx_weight4 * grid_vx[vx_index_01]) /
+    float pic_vx = (valid_vx_00 * vx_weight1 * grid_vx[vx_index_00] + valid_vx_10 * vx_weight2 * grid_vx[vx_index_10] +
+                    valid_vx_11 * vx_weight3 * grid_vx[vx_index_11] + valid_vx_01 * vx_weight4 * grid_vx[vx_index_01]) /
                    valid_weight_sum_vx;
 
     // flip correction = weighted average of velocity CHANGE
@@ -484,18 +475,16 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   float vy_particle_pos_y = py;
 
   // clamp particle position to safe range (one cell away from boundaries)
-  if (vy_particle_pos_x < min_pos) vy_particle_pos_x = min_pos;
-  else if (vy_particle_pos_x > max_pos_x) vy_particle_pos_x = max_pos_x;
-  if (vy_particle_pos_y < min_pos) vy_particle_pos_y = min_pos;
-  else if (vy_particle_pos_y > max_pos_y) vy_particle_pos_y = max_pos_y;
+  vy_particle_pos_x = utils::clamp(vy_particle_pos_x, min_pos, max_pos_x);
+  vy_particle_pos_y = utils::clamp(vy_particle_pos_y, min_pos, max_pos_y);
 
   // determine which cell (within the staggered velocity grid)
   int vy_velocities_grid_cell_i = (int)(vy_particle_pos_x * inv_cell_size);
   int vy_velocities_grid_cell_j = (int)(vy_particle_pos_y * inv_cell_size);
 
   // clamp cell indices so +1 never exceeds bounds
-  if (vy_velocities_grid_cell_i > max_cell_i) vy_velocities_grid_cell_i = max_cell_i;
-  if (vy_velocities_grid_cell_j > max_cell_j) vy_velocities_grid_cell_j = max_cell_j;
+  vy_velocities_grid_cell_i = utils::clamp(vy_velocities_grid_cell_i, 0, max_cell_i);
+  vy_velocities_grid_cell_j = utils::clamp(vy_velocities_grid_cell_j, 0, max_cell_j);
 
   // calculate where inside the cell the particle is
   float vy_delta_x = vy_particle_pos_x - vy_velocities_grid_cell_i * cell_size;
@@ -526,34 +515,32 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   int vy_offset = 1;
 
   // check if each velocity sample is valid
-  float valid_vy_00 = (cell_type[vy_index_00] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_index_00 - vy_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vy_10 = (cell_type[vy_index_10] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_index_10 - vy_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vy_11 = (cell_type[vy_index_11] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_index_11 - vy_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
-  float valid_vy_01 = (cell_type[vy_index_01] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_index_01 - vy_offset] != grid_cell_t::CELL_AIR)
-                          ? 1.0f
-                          : 0.0f;
+  float valid_vy_00 =
+      (cell_type[vy_index_00] != grid_cell_t::CELL_AIR || cell_type[vy_index_00 - vy_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vy_10 =
+      (cell_type[vy_index_10] != grid_cell_t::CELL_AIR || cell_type[vy_index_10 - vy_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vy_11 =
+      (cell_type[vy_index_11] != grid_cell_t::CELL_AIR || cell_type[vy_index_11 - vy_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
+  float valid_vy_01 =
+      (cell_type[vy_index_01] != grid_cell_t::CELL_AIR || cell_type[vy_index_01 - vy_offset] != grid_cell_t::CELL_AIR)
+          ? 1.0f
+          : 0.0f;
 
   // sum of weights from valid samples only
-  float valid_weight_sum_vy = valid_vy_00 * vy_weight1 + valid_vy_10 * vy_weight2 +
-                              valid_vy_11 * vy_weight3 + valid_vy_01 * vy_weight4;
+  float valid_weight_sum_vy =
+      valid_vy_00 * vy_weight1 + valid_vy_10 * vy_weight2 + valid_vy_11 * vy_weight3 + valid_vy_01 * vy_weight4;
 
   // only update particle if we have valid velocity data to interpolate from
   if (valid_weight_sum_vy > 0.0f) {
     // pic velocity = weighted average of current grid velocities
-    float pic_vy = (valid_vy_00 * vy_weight1 * grid_vy[vy_index_00] +
-                    valid_vy_10 * vy_weight2 * grid_vy[vy_index_10] +
-                    valid_vy_11 * vy_weight3 * grid_vy[vy_index_11] +
-                    valid_vy_01 * vy_weight4 * grid_vy[vy_index_01]) /
+    float pic_vy = (valid_vy_00 * vy_weight1 * grid_vy[vy_index_00] + valid_vy_10 * vy_weight2 * grid_vy[vy_index_10] +
+                    valid_vy_11 * vy_weight3 * grid_vy[vy_index_11] + valid_vy_01 * vy_weight4 * grid_vy[vy_index_01]) /
                    valid_weight_sum_vy;
 
     // flip correction = weighted average of velocity CHANGE
