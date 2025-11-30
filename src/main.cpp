@@ -16,8 +16,7 @@ const unsigned long stepInterval = (unsigned long)(DELTA_T * 1000.0f);  // conve
 float gravityX = 0.0f;
 float gravityY = -GRAVITY_MAGNITUDE;  // default: pointing down
 
-// particle radius - calculated from cell size like reference code
-// reference uses: r = 0.3 * h where h is cell_size
+// particle radius - calculated from cell size
 float particleRadius = 0.0f;
 
 // function to initialize particles in a block formation
@@ -121,7 +120,7 @@ void visualizeParticles() {
       matrix.setPixelColor(i, matrix.Color(0, 50, brightness));  // Dynamic brightness*/
 
       // or simple solid color
-      matrix.setPixelColor(i, matrix.Color(0, 50, 255));
+      matrix.setPixelColor(i, matrix.Color(110, 60, 255));
     }
   }
 

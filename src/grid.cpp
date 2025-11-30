@@ -46,8 +46,8 @@ InterpolationData Grid::getInterpolationData(Particle* particle, VelocityCompone
   // particle positions are shifted since velocities are in the center of sides of cell
   // doing this we transform from the cells grid to the grid formed by
   // the points where the vx velocities are( center of the vertical sides of the cells)
-  float offset_x = (component == VelocityComponent::VY) ? cell_size * 0.5 : 0.0;
-  float offset_y = (component == VelocityComponent::VX) ? cell_size * 0.5 : 0.0;
+  float offset_x = (component == VelocityComponent::VY) ? cell_size * 0.5f : 0.0f;
+  float offset_y = (component == VelocityComponent::VX) ? cell_size * 0.5f : 0.0f;
 
   // shift particle position into the velocity components coordinate system
   float particle_pos_x = particle->getX() - offset_x;
@@ -221,10 +221,10 @@ void Grid::normalizeGridVelocities() {
 
   for (int i = 0; i < num_cells; i++) {
     // only divide if some particle contributed to this cell
-    if (vx_weight_accumulator[i] > 0.0) {
+    if (vx_weight_accumulator[i] > 0.0f) {
       grid_vx[i] = grid_vx[i] / vx_weight_accumulator[i];
     }
-    if (vy_weight_accumulator[i] > 0.0) {
+    if (vy_weight_accumulator[i] > 0.0f) {
       grid_vy[i] = grid_vy[i] / vy_weight_accumulator[i];
     }
   }

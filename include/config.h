@@ -50,6 +50,6 @@
 #define PHYSICAL_HEIGHT 0.5f
 
 // visualization
-#define PARTICLE_THRESHOLD 3  // minimum particles required to turn on an LED
+#define PARTICLE_THRESHOLD 4  // minimum particles required to turn on an LED
 
 #endif
