@@ -205,7 +205,6 @@ void runFLIPStep() {
   // correct change in velocity for the FLIP update.
   grid.savePreviousVelocities();
 
-
   // ===== STEP 12: SOLVE FOR INCOMPRESSIBILITY =====
   // iteratively adjust velocities to minimize divergence
   // this is what makes the fluid behave like liquid (constant volume)
@@ -305,7 +304,7 @@ void setup() {
 
 void loop() {
   unsigned long currentTime = millis();
-
+  const unsigned long stepInterval = (unsigned long)(FRAME_INTERVAL * 1000.0f);
   // only run simulation step when enough time has passed for fixed timestep
   if (currentTime - lastStepTime >= stepInterval) {
     lastStepTime = currentTime;

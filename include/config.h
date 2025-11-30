@@ -29,15 +29,17 @@
 //------simulation constants------
 
 // general
-#define GRAVITY_MAGNITUDE 9.81f          // gravity magnitude in m/s^2
-#define DELTA_T 0.025f                   // timestep in seconds
-#define FLIP_RATIO 0.9f                 // flip vs pic ratio
-#define INCOMPRESSIBILITY_ITERATIONS 20  // number of incompressibility iterations
-#define OVERRELAXATION 1.9f              // overrelaxation factor to speed up convergence
-#define K_FACTOR 1.0f                    // stiffness factort for density correction
+#define GRAVITY_MAGNITUDE 9.81f                      // gravity magnitude in m/s^2
+#define FRAME_INTERVAL 0.012f                        // real time between frames
+#define SPEED_MULTIPLIER 1.25f                       // adjust this to control speed
+#define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
+#define FLIP_RATIO 0.9f                              // flip vs pic ratio
+#define INCOMPRESSIBILITY_ITERATIONS 20              // number of incompressibility iterations
+#define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
+#define K_FACTOR 1.0f                                // stiffness factort for density correction
 
 // particles
-#define NUM_PARTICLES 195 // number of fluid particles
+#define NUM_PARTICLES 195  // number of fluid particles
 
 // grid
 #define GRID_SIZE_X 16  // grid cells in x direction
@@ -47,8 +49,7 @@
 #define PHYSICAL_WIDTH 0.5f
 #define PHYSICAL_HEIGHT 0.5f
 
-//visualization
-#define PARTICLE_THRESHOLD 3   // minimum particles required to turn on an LED
-
+// visualization
+#define PARTICLE_THRESHOLD 3  // minimum particles required to turn on an LED
 
 #endif
