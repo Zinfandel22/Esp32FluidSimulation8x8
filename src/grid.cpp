@@ -39,48 +39,6 @@ Grid::Grid() {
   }
 }
 
-InterpolationData Grid::getInterpolationData(Particle* particle, VelocityComponent component) {
-  InterpolationData data;
-
-  // determine offsets based on which velocity component we are interpolating
-  // particle positions are shifted since velocities are in the center of sides of cell
-  // doing this we transform from the cells grid to the grid formed by
-  // the points where the vx velocities are( center of the vertical sides of the cells)
-  float offset_x = (component == VelocityComponent::VY) ? cell_size * 0.5f : 0.0f;
-  float offset_y = (component == VelocityComponent::VX) ? cell_size * 0.5f : 0.0f;
-
-  // shift particle position into the velocity components coordinate system
-  float particle_pos_x = particle->x_pos - offset_x;
-  float particle_pos_y = particle->y_pos - offset_y;
-  // clamp particle position to safe range (one cell away from boundaries)
-  particle_pos_x = utils::clamp(particle_pos_x, cell_size, (size_x - 1) * cell_size);
-  particle_pos_y = utils::clamp(particle_pos_y, cell_size, (size_y - 1) * cell_size);
-
-  // determine which cell (within the staggered velocity grid)
-  uint16_t velocities_grid_cell_i = particle_pos_x * inv_cell_size;
-  uint16_t velocities_grid_cell_j = particle_pos_y * inv_cell_size;
-  // clamp cell indices so +1 never exceeds bounds
-  velocities_grid_cell_i = utils::clamp(velocities_grid_cell_i, 0, size_x - 2);
-  velocities_grid_cell_j = utils::clamp(velocities_grid_cell_j, 0, size_y - 2);
-
-  // calculate where inside the cell the particle is
-  float delta_x = particle_pos_x - velocities_grid_cell_i * cell_size;
-  float delta_y = particle_pos_y - velocities_grid_cell_j * cell_size;
-
-  // calculate weights
-  data.weight1 = (1 - (delta_x * inv_cell_size)) * (1 - (delta_y * inv_cell_size));
-  data.weight2 = (delta_x * inv_cell_size) * (1 - (delta_y * inv_cell_size));
-  data.weight3 = (delta_x * inv_cell_size) * (delta_y * inv_cell_size);
-  data.weight4 = (1 - (delta_x * inv_cell_size)) * (delta_y * inv_cell_size);
-
-  // find the index of the four grid corners in the 1D array
-  data.index_00 = velocities_grid_cell_i * size_y + velocities_grid_cell_j;              // bottom left
-  data.index_10 = (velocities_grid_cell_i + 1) * size_y + velocities_grid_cell_j;        // bottom right
-  data.index_11 = (velocities_grid_cell_i + 1) * size_y + (velocities_grid_cell_j + 1);  // top right
-  data.index_01 = velocities_grid_cell_i * size_y + (velocities_grid_cell_j + 1);        // top left
-
-  return data;
-}
 
 void Grid::markCellWalls() {
   // reset all to air
@@ -179,37 +137,141 @@ void Grid::restoreSolidCellVelocities() {
   }
 }
 void Grid::transferVelocityfromParticleToGrid(Particle* particle) {
+  // read particle data once to avoid repeated pointer dereferences
+  float px = particle->x_pos;
+  float py = particle->y_pos;
+  float p_vx = particle->vx;
+  float p_vy = particle->vy;
+
+  // precompute values used by both vx and vy interpolation
+  float half_cell = cell_size * 0.5f;
+  float min_pos = cell_size;
+  float max_pos_x = (size_x - 1) * cell_size;
+  float max_pos_y = (size_y - 1) * cell_size;
+  int max_cell_i = size_x - 2;
+  int max_cell_j = size_y - 2;
+
   //***** vx transfer from particle to grid *****
 
-  InterpolationData vx_data = getInterpolationData(particle, VelocityComponent::VX);
+  // determine offsets based on which velocity component we are interpolating
+  // particle positions are shifted since velocities are in the center of sides of cell
+  // doing this we transform from the cells grid to the grid formed by
+  // the points where the vx velocities are (center of the vertical sides of the cells)
+  // for vx: offset_x = 0, offset_y = half_cell
+
+  // shift particle position into the velocity components coordinate system
+  float vx_particle_pos_x = px;
+  float vx_particle_pos_y = py - half_cell;
+
+  // clamp particle position to safe range (one cell away from boundaries)
+  if (vx_particle_pos_x < min_pos) vx_particle_pos_x = min_pos;
+  else if (vx_particle_pos_x > max_pos_x) vx_particle_pos_x = max_pos_x;
+  if (vx_particle_pos_y < min_pos) vx_particle_pos_y = min_pos;
+  else if (vx_particle_pos_y > max_pos_y) vx_particle_pos_y = max_pos_y;
+
+  // determine which cell (within the staggered velocity grid)
+  int vx_velocities_grid_cell_i = (int)(vx_particle_pos_x * inv_cell_size);
+  int vx_velocities_grid_cell_j = (int)(vx_particle_pos_y * inv_cell_size);
+
+  // clamp cell indices so +1 never exceeds bounds
+  if (vx_velocities_grid_cell_i > max_cell_i) vx_velocities_grid_cell_i = max_cell_i;
+  if (vx_velocities_grid_cell_j > max_cell_j) vx_velocities_grid_cell_j = max_cell_j;
+
+  // calculate where inside the cell the particle is
+  float vx_delta_x = vx_particle_pos_x - vx_velocities_grid_cell_i * cell_size;
+  float vx_delta_y = vx_particle_pos_y - vx_velocities_grid_cell_j * cell_size;
+
+  // precompute normalized weights to avoid redundant calculations
+  float vx_tx = vx_delta_x * inv_cell_size;
+  float vx_ty = vx_delta_y * inv_cell_size;
+  float vx_sx = 1.0f - vx_tx;
+  float vx_sy = 1.0f - vx_ty;
+
+  // calculate weights
+  float vx_weight1 = vx_sx * vx_sy;  // weight for bottom left
+  float vx_weight2 = vx_tx * vx_sy;  // weight for bottom right
+  float vx_weight3 = vx_tx * vx_ty;  // weight for top right
+  float vx_weight4 = vx_sx * vx_ty;  // weight for top left
+
+  // find the index of the four grid corners in the 1d array
+  int vx_base_index = vx_velocities_grid_cell_i * size_y + vx_velocities_grid_cell_j;
+  int vx_index_00 = vx_base_index;               // bottom left
+  int vx_index_10 = vx_base_index + size_y;      // bottom right
+  int vx_index_11 = vx_base_index + size_y + 1;  // top right
+  int vx_index_01 = vx_base_index + 1;           // top left
 
   // add particle velocity * weight to each corner
-  grid_vx[vx_data.index_00] = grid_vx[vx_data.index_00] + vx_data.weight1 * particle->vx;
-  grid_vx[vx_data.index_10] = grid_vx[vx_data.index_10] + vx_data.weight2 * particle->vx;
-  grid_vx[vx_data.index_11] = grid_vx[vx_data.index_11] + vx_data.weight3 * particle->vx;
-  grid_vx[vx_data.index_01] = grid_vx[vx_data.index_01] + vx_data.weight4 * particle->vx;
+  grid_vx[vx_index_00] += vx_weight1 * p_vx;
+  grid_vx[vx_index_10] += vx_weight2 * p_vx;
+  grid_vx[vx_index_11] += vx_weight3 * p_vx;
+  grid_vx[vx_index_01] += vx_weight4 * p_vx;
 
-  // add each each corner wright to each corner weight acumulator
-  vx_weight_accumulator[vx_data.index_00] = vx_weight_accumulator[vx_data.index_00] + vx_data.weight1;
-  vx_weight_accumulator[vx_data.index_10] = vx_weight_accumulator[vx_data.index_10] + vx_data.weight2;
-  vx_weight_accumulator[vx_data.index_11] = vx_weight_accumulator[vx_data.index_11] + vx_data.weight3;
-  vx_weight_accumulator[vx_data.index_01] = vx_weight_accumulator[vx_data.index_01] + vx_data.weight4;
+  // add each corner weight to each corner weight accumulator
+  vx_weight_accumulator[vx_index_00] += vx_weight1;
+  vx_weight_accumulator[vx_index_10] += vx_weight2;
+  vx_weight_accumulator[vx_index_11] += vx_weight3;
+  vx_weight_accumulator[vx_index_01] += vx_weight4;
 
   //***** vy transfer from particle to grid *****
 
-  InterpolationData vy_data = getInterpolationData(particle, VelocityComponent::VY);
+  // determine offsets based on which velocity component we are interpolating
+  // particle positions are shifted since velocities are in the center of sides of cell
+  // doing this we transform from the cells grid to the grid formed by
+  // the points where the vy velocities are (center of the horizontal sides of the cells)
+  // for vy: offset_x = half_cell, offset_y = 0
+
+  // shift particle position into the velocity components coordinate system
+  float vy_particle_pos_x = px - half_cell;
+  float vy_particle_pos_y = py;
+
+  // clamp particle position to safe range (one cell away from boundaries)
+  if (vy_particle_pos_x < min_pos) vy_particle_pos_x = min_pos;
+  else if (vy_particle_pos_x > max_pos_x) vy_particle_pos_x = max_pos_x;
+  if (vy_particle_pos_y < min_pos) vy_particle_pos_y = min_pos;
+  else if (vy_particle_pos_y > max_pos_y) vy_particle_pos_y = max_pos_y;
+
+  // determine which cell (within the staggered velocity grid)
+  int vy_velocities_grid_cell_i = (int)(vy_particle_pos_x * inv_cell_size);
+  int vy_velocities_grid_cell_j = (int)(vy_particle_pos_y * inv_cell_size);
+
+  // clamp cell indices so +1 never exceeds bounds
+  if (vy_velocities_grid_cell_i > max_cell_i) vy_velocities_grid_cell_i = max_cell_i;
+  if (vy_velocities_grid_cell_j > max_cell_j) vy_velocities_grid_cell_j = max_cell_j;
+
+  // calculate where inside the cell the particle is
+  float vy_delta_x = vy_particle_pos_x - vy_velocities_grid_cell_i * cell_size;
+  float vy_delta_y = vy_particle_pos_y - vy_velocities_grid_cell_j * cell_size;
+
+  // precompute normalized weights to avoid redundant calculations
+  float vy_tx = vy_delta_x * inv_cell_size;
+  float vy_ty = vy_delta_y * inv_cell_size;
+  float vy_sx = 1.0f - vy_tx;
+  float vy_sy = 1.0f - vy_ty;
+
+  // calculate weights
+  float vy_weight1 = vy_sx * vy_sy;  // weight for bottom left
+  float vy_weight2 = vy_tx * vy_sy;  // weight for bottom right
+  float vy_weight3 = vy_tx * vy_ty;  // weight for top right
+  float vy_weight4 = vy_sx * vy_ty;  // weight for top left
+
+  // find the index of the four grid corners in the 1d array
+  int vy_base_index = vy_velocities_grid_cell_i * size_y + vy_velocities_grid_cell_j;
+  int vy_index_00 = vy_base_index;               // bottom left
+  int vy_index_10 = vy_base_index + size_y;      // bottom right
+  int vy_index_11 = vy_base_index + size_y + 1;  // top right
+  int vy_index_01 = vy_base_index + 1;           // top left
 
   // add particle velocity * weight to each corner
-  grid_vy[vy_data.index_00] = grid_vy[vy_data.index_00] + vy_data.weight1 * particle->vy;
-  grid_vy[vy_data.index_10] = grid_vy[vy_data.index_10] + vy_data.weight2 * particle->vy;
-  grid_vy[vy_data.index_11] = grid_vy[vy_data.index_11] + vy_data.weight3 * particle->vy;
-  grid_vy[vy_data.index_01] = grid_vy[vy_data.index_01] + vy_data.weight4 * particle->vy;
+  grid_vy[vy_index_00] += vy_weight1 * p_vy;
+  grid_vy[vy_index_10] += vy_weight2 * p_vy;
+  grid_vy[vy_index_11] += vy_weight3 * p_vy;
+  grid_vy[vy_index_01] += vy_weight4 * p_vy;
 
-  // add each each corner wright to each corner weight acumulator
-  vy_weight_accumulator[vy_data.index_00] = vy_weight_accumulator[vy_data.index_00] + vy_data.weight1;
-  vy_weight_accumulator[vy_data.index_10] = vy_weight_accumulator[vy_data.index_10] + vy_data.weight2;
-  vy_weight_accumulator[vy_data.index_11] = vy_weight_accumulator[vy_data.index_11] + vy_data.weight3;
-  vy_weight_accumulator[vy_data.index_01] = vy_weight_accumulator[vy_data.index_01] + vy_data.weight4;
+  // add each corner weight to each corner weight accumulator
+  vy_weight_accumulator[vy_index_00] += vy_weight1;
+  vy_weight_accumulator[vy_index_10] += vy_weight2;
+  vy_weight_accumulator[vy_index_11] += vy_weight3;
+  vy_weight_accumulator[vy_index_01] += vy_weight4;
 }
 
 // normalize cell corner velocities dividing by the weight accumualtor
@@ -290,9 +352,66 @@ void Grid::forcingIncompressibility() {
 }
 
 void Grid::transferVelocityfromGridToParticle(Particle* particle) {
+  // read particle data once to avoid repeated pointer dereferences
+  float px = particle->x_pos;
+  float py = particle->y_pos;
+
+  // precompute values used by both vx and vy interpolation
+  float half_cell = cell_size * 0.5f;
+  float min_pos = cell_size;
+  float max_pos_x = (size_x - 1) * cell_size;
+  float max_pos_y = (size_y - 1) * cell_size;
+  int max_cell_i = size_x - 2;
+  int max_cell_j = size_y - 2;
+
   //***** vx transfer from grid to particle *****
 
-  InterpolationData vx_data = getInterpolationData(particle, VelocityComponent::VX);
+  // determine offsets based on which velocity component we are interpolating
+  // particle positions are shifted since velocities are in the center of sides of cell
+  // doing this we transform from the cells grid to the grid formed by
+  // the points where the vx velocities are (center of the vertical sides of the cells)
+  // for vx: offset_x = 0, offset_y = half_cell
+
+  // shift particle position into the velocity components coordinate system
+  float vx_particle_pos_x = px;
+  float vx_particle_pos_y = py - half_cell;
+
+  // clamp particle position to safe range (one cell away from boundaries)
+  if (vx_particle_pos_x < min_pos) vx_particle_pos_x = min_pos;
+  else if (vx_particle_pos_x > max_pos_x) vx_particle_pos_x = max_pos_x;
+  if (vx_particle_pos_y < min_pos) vx_particle_pos_y = min_pos;
+  else if (vx_particle_pos_y > max_pos_y) vx_particle_pos_y = max_pos_y;
+
+  // determine which cell (within the staggered velocity grid)
+  int vx_velocities_grid_cell_i = (int)(vx_particle_pos_x * inv_cell_size);
+  int vx_velocities_grid_cell_j = (int)(vx_particle_pos_y * inv_cell_size);
+
+  // clamp cell indices so +1 never exceeds bounds
+  if (vx_velocities_grid_cell_i > max_cell_i) vx_velocities_grid_cell_i = max_cell_i;
+  if (vx_velocities_grid_cell_j > max_cell_j) vx_velocities_grid_cell_j = max_cell_j;
+
+  // calculate where inside the cell the particle is
+  float vx_delta_x = vx_particle_pos_x - vx_velocities_grid_cell_i * cell_size;
+  float vx_delta_y = vx_particle_pos_y - vx_velocities_grid_cell_j * cell_size;
+
+  // precompute normalized weights to avoid redundant calculations
+  float vx_tx = vx_delta_x * inv_cell_size;
+  float vx_ty = vx_delta_y * inv_cell_size;
+  float vx_sx = 1.0f - vx_tx;
+  float vx_sy = 1.0f - vx_ty;
+
+  // calculate weights
+  float vx_weight1 = vx_sx * vx_sy;  // weight for bottom left
+  float vx_weight2 = vx_tx * vx_sy;  // weight for bottom right
+  float vx_weight3 = vx_tx * vx_ty;  // weight for top right
+  float vx_weight4 = vx_sx * vx_ty;  // weight for top left
+
+  // find the index of the four grid corners in the 1d array
+  int vx_base_index = vx_velocities_grid_cell_i * size_y + vx_velocities_grid_cell_j;
+  int vx_index_00 = vx_base_index;               // bottom left
+  int vx_index_10 = vx_base_index + size_y;      // bottom right
+  int vx_index_11 = vx_base_index + size_y + 1;  // top right
+  int vx_index_01 = vx_base_index + 1;           // top left
 
   // offset to find the neighboring cell that shares this velocity
   // u velocities sit on vertical faces between cell (i-1,j) and cell (i,j)
@@ -302,45 +421,45 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   // check if each velocity sample is valid
   // a velocity is valid if at least one of the two cells it borders is not air
   // if both cells are air, no fluid ever contributed to that velocity
-  float valid_vx_00 = (cell_type[vx_data.index_00] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_data.index_00 - vx_offset] != grid_cell_t::CELL_AIR)
+  float valid_vx_00 = (cell_type[vx_index_00] != grid_cell_t::CELL_AIR ||
+                       cell_type[vx_index_00 - vx_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vx_10 = (cell_type[vx_data.index_10] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_data.index_10 - vx_offset] != grid_cell_t::CELL_AIR)
+  float valid_vx_10 = (cell_type[vx_index_10] != grid_cell_t::CELL_AIR ||
+                       cell_type[vx_index_10 - vx_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vx_11 = (cell_type[vx_data.index_11] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_data.index_11 - vx_offset] != grid_cell_t::CELL_AIR)
+  float valid_vx_11 = (cell_type[vx_index_11] != grid_cell_t::CELL_AIR ||
+                       cell_type[vx_index_11 - vx_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vx_01 = (cell_type[vx_data.index_01] != grid_cell_t::CELL_AIR ||
-                       cell_type[vx_data.index_01 - vx_offset] != grid_cell_t::CELL_AIR)
+  float valid_vx_01 = (cell_type[vx_index_01] != grid_cell_t::CELL_AIR ||
+                       cell_type[vx_index_01 - vx_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
 
   // sum of weights from valid samples only
   // we need this because invalid samples are excluded, so weights no longer sum to 1
-  float valid_weight_sum_vx = valid_vx_00 * vx_data.weight1 + valid_vx_10 * vx_data.weight2 +
-                              valid_vx_11 * vx_data.weight3 + valid_vx_01 * vx_data.weight4;
+  float valid_weight_sum_vx = valid_vx_00 * vx_weight1 + valid_vx_10 * vx_weight2 +
+                              valid_vx_11 * vx_weight3 + valid_vx_01 * vx_weight4;
 
   // only update particle if we have valid velocity data to interpolate from
   if (valid_weight_sum_vx > 0.0f) {
     // pic velocity = weighted average of current grid velocities
     // each term is multiplied by validity (0 or 1) to exclude air-only samples
     // divide by valid weight sum to get proper weighted average
-    float pic_vx = (valid_vx_00 * vx_data.weight1 * grid_vx[vx_data.index_00] +
-                    valid_vx_10 * vx_data.weight2 * grid_vx[vx_data.index_10] +
-                    valid_vx_11 * vx_data.weight3 * grid_vx[vx_data.index_11] +
-                    valid_vx_01 * vx_data.weight4 * grid_vx[vx_data.index_01]) /
+    float pic_vx = (valid_vx_00 * vx_weight1 * grid_vx[vx_index_00] +
+                    valid_vx_10 * vx_weight2 * grid_vx[vx_index_10] +
+                    valid_vx_11 * vx_weight3 * grid_vx[vx_index_11] +
+                    valid_vx_01 * vx_weight4 * grid_vx[vx_index_01]) /
                    valid_weight_sum_vx;
 
     // flip correction = weighted average of velocity CHANGE
     // same validity filtering applied here
-    float corr_vx = (valid_vx_00 * vx_data.weight1 * (grid_vx[vx_data.index_00] - grid_previous_vx[vx_data.index_00]) +
-                     valid_vx_10 * vx_data.weight2 * (grid_vx[vx_data.index_10] - grid_previous_vx[vx_data.index_10]) +
-                     valid_vx_11 * vx_data.weight3 * (grid_vx[vx_data.index_11] - grid_previous_vx[vx_data.index_11]) +
-                     valid_vx_01 * vx_data.weight4 * (grid_vx[vx_data.index_01] - grid_previous_vx[vx_data.index_01])) /
+    float corr_vx = (valid_vx_00 * vx_weight1 * (grid_vx[vx_index_00] - grid_previous_vx[vx_index_00]) +
+                     valid_vx_10 * vx_weight2 * (grid_vx[vx_index_10] - grid_previous_vx[vx_index_10]) +
+                     valid_vx_11 * vx_weight3 * (grid_vx[vx_index_11] - grid_previous_vx[vx_index_11]) +
+                     valid_vx_01 * vx_weight4 * (grid_vx[vx_index_01] - grid_previous_vx[vx_index_01])) /
                     valid_weight_sum_vx;
 
     // flip velocity = current particle velocity + grid velocity change
@@ -348,13 +467,58 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
 
     // blend pic and flip based on ratio
     float new_vx = (1.0f - FLIP_RATIO) * pic_vx + FLIP_RATIO * flip_vx;
-    particle->vx = (new_vx);
+    particle->vx = new_vx;
   }
   // if no valid samples, particle keeps its current vx unchanged
 
   //***** vy transfer from grid to particle *****
 
-  InterpolationData vy_data = getInterpolationData(particle, VelocityComponent::VY);
+  // determine offsets based on which velocity component we are interpolating
+  // particle positions are shifted since velocities are in the center of sides of cell
+  // doing this we transform from the cells grid to the grid formed by
+  // the points where the vy velocities are (center of the horizontal sides of the cells)
+  // for vy: offset_x = half_cell, offset_y = 0
+
+  // shift particle position into the velocity components coordinate system
+  float vy_particle_pos_x = px - half_cell;
+  float vy_particle_pos_y = py;
+
+  // clamp particle position to safe range (one cell away from boundaries)
+  if (vy_particle_pos_x < min_pos) vy_particle_pos_x = min_pos;
+  else if (vy_particle_pos_x > max_pos_x) vy_particle_pos_x = max_pos_x;
+  if (vy_particle_pos_y < min_pos) vy_particle_pos_y = min_pos;
+  else if (vy_particle_pos_y > max_pos_y) vy_particle_pos_y = max_pos_y;
+
+  // determine which cell (within the staggered velocity grid)
+  int vy_velocities_grid_cell_i = (int)(vy_particle_pos_x * inv_cell_size);
+  int vy_velocities_grid_cell_j = (int)(vy_particle_pos_y * inv_cell_size);
+
+  // clamp cell indices so +1 never exceeds bounds
+  if (vy_velocities_grid_cell_i > max_cell_i) vy_velocities_grid_cell_i = max_cell_i;
+  if (vy_velocities_grid_cell_j > max_cell_j) vy_velocities_grid_cell_j = max_cell_j;
+
+  // calculate where inside the cell the particle is
+  float vy_delta_x = vy_particle_pos_x - vy_velocities_grid_cell_i * cell_size;
+  float vy_delta_y = vy_particle_pos_y - vy_velocities_grid_cell_j * cell_size;
+
+  // precompute normalized weights to avoid redundant calculations
+  float vy_tx = vy_delta_x * inv_cell_size;
+  float vy_ty = vy_delta_y * inv_cell_size;
+  float vy_sx = 1.0f - vy_tx;
+  float vy_sy = 1.0f - vy_ty;
+
+  // calculate weights
+  float vy_weight1 = vy_sx * vy_sy;  // weight for bottom left
+  float vy_weight2 = vy_tx * vy_sy;  // weight for bottom right
+  float vy_weight3 = vy_tx * vy_ty;  // weight for top right
+  float vy_weight4 = vy_sx * vy_ty;  // weight for top left
+
+  // find the index of the four grid corners in the 1d array
+  int vy_base_index = vy_velocities_grid_cell_i * size_y + vy_velocities_grid_cell_j;
+  int vy_index_00 = vy_base_index;               // bottom left
+  int vy_index_10 = vy_base_index + size_y;      // bottom right
+  int vy_index_11 = vy_base_index + size_y + 1;  // top right
+  int vy_index_01 = vy_base_index + 1;           // top left
 
   // offset to find the neighboring cell that shares this velocity
   // v velocities sit on horizontal faces between cell (i,j-1) and cell (i,j)
@@ -362,41 +526,41 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   int vy_offset = 1;
 
   // check if each velocity sample is valid
-  float valid_vy_00 = (cell_type[vy_data.index_00] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_data.index_00 - vy_offset] != grid_cell_t::CELL_AIR)
+  float valid_vy_00 = (cell_type[vy_index_00] != grid_cell_t::CELL_AIR ||
+                       cell_type[vy_index_00 - vy_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vy_10 = (cell_type[vy_data.index_10] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_data.index_10 - vy_offset] != grid_cell_t::CELL_AIR)
+  float valid_vy_10 = (cell_type[vy_index_10] != grid_cell_t::CELL_AIR ||
+                       cell_type[vy_index_10 - vy_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vy_11 = (cell_type[vy_data.index_11] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_data.index_11 - vy_offset] != grid_cell_t::CELL_AIR)
+  float valid_vy_11 = (cell_type[vy_index_11] != grid_cell_t::CELL_AIR ||
+                       cell_type[vy_index_11 - vy_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
-  float valid_vy_01 = (cell_type[vy_data.index_01] != grid_cell_t::CELL_AIR ||
-                       cell_type[vy_data.index_01 - vy_offset] != grid_cell_t::CELL_AIR)
+  float valid_vy_01 = (cell_type[vy_index_01] != grid_cell_t::CELL_AIR ||
+                       cell_type[vy_index_01 - vy_offset] != grid_cell_t::CELL_AIR)
                           ? 1.0f
                           : 0.0f;
 
   // sum of weights from valid samples only
-  float valid_weight_sum_vy = valid_vy_00 * vy_data.weight1 + valid_vy_10 * vy_data.weight2 +
-                              valid_vy_11 * vy_data.weight3 + valid_vy_01 * vy_data.weight4;
+  float valid_weight_sum_vy = valid_vy_00 * vy_weight1 + valid_vy_10 * vy_weight2 +
+                              valid_vy_11 * vy_weight3 + valid_vy_01 * vy_weight4;
 
   // only update particle if we have valid velocity data to interpolate from
   if (valid_weight_sum_vy > 0.0f) {
     // pic velocity = weighted average of current grid velocities
-    float pic_vy = (valid_vy_00 * vy_data.weight1 * grid_vy[vy_data.index_00] +
-                    valid_vy_10 * vy_data.weight2 * grid_vy[vy_data.index_10] +
-                    valid_vy_11 * vy_data.weight3 * grid_vy[vy_data.index_11] +
-                    valid_vy_01 * vy_data.weight4 * grid_vy[vy_data.index_01]) /
+    float pic_vy = (valid_vy_00 * vy_weight1 * grid_vy[vy_index_00] +
+                    valid_vy_10 * vy_weight2 * grid_vy[vy_index_10] +
+                    valid_vy_11 * vy_weight3 * grid_vy[vy_index_11] +
+                    valid_vy_01 * vy_weight4 * grid_vy[vy_index_01]) /
                    valid_weight_sum_vy;
 
     // flip correction = weighted average of velocity CHANGE
-    float corr_vy = (valid_vy_00 * vy_data.weight1 * (grid_vy[vy_data.index_00] - grid_previous_vy[vy_data.index_00]) +
-                     valid_vy_10 * vy_data.weight2 * (grid_vy[vy_data.index_10] - grid_previous_vy[vy_data.index_10]) +
-                     valid_vy_11 * vy_data.weight3 * (grid_vy[vy_data.index_11] - grid_previous_vy[vy_data.index_11]) +
-                     valid_vy_01 * vy_data.weight4 * (grid_vy[vy_data.index_01] - grid_previous_vy[vy_data.index_01])) /
+    float corr_vy = (valid_vy_00 * vy_weight1 * (grid_vy[vy_index_00] - grid_previous_vy[vy_index_00]) +
+                     valid_vy_10 * vy_weight2 * (grid_vy[vy_index_10] - grid_previous_vy[vy_index_10]) +
+                     valid_vy_11 * vy_weight3 * (grid_vy[vy_index_11] - grid_previous_vy[vy_index_11]) +
+                     valid_vy_01 * vy_weight4 * (grid_vy[vy_index_01] - grid_previous_vy[vy_index_01])) /
                     valid_weight_sum_vy;
 
     // flip velocity = current particle velocity + grid velocity change
@@ -404,7 +568,7 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
 
     // blend pic and flip based on ratio
     float new_vy = (1.0f - FLIP_RATIO) * pic_vy + FLIP_RATIO * flip_vy;
-    particle->vy = (new_vy);
+    particle->vy = new_vy;
   }
   // if no valid samples, particle keeps its current vy unchanged
 }
