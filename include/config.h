@@ -31,24 +31,24 @@
 // general
 #define GRAVITY_MAGNITUDE 9.81f          // gravity magnitude in m/s^2
 #define DELTA_T 0.025f                   // timestep in seconds
-#define FLIP_RATIO 0.3f                 // flip vs pic ratio
+#define FLIP_RATIO 0.9f                 // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 20  // number of incompressibility iterations
 #define OVERRELAXATION 1.9f              // overrelaxation factor to speed up convergence
 #define K_FACTOR 1.0f                    // stiffness factort for density correction
 
 // particles
-#define NUM_PARTICLES 1000  // number of fluid particles
+#define NUM_PARTICLES 195 // number of fluid particles
 
 // grid
-#define GRID_SIZE_X 32  // grid cells in x direction
-#define GRID_SIZE_Y 32  // grid cells in y direction
+#define GRID_SIZE_X 16  // grid cells in x direction
+#define GRID_SIZE_Y 16  // grid cells in y direction
 
 // physical dimensions of led matrix in meters
 #define PHYSICAL_WIDTH 0.5f
 #define PHYSICAL_HEIGHT 0.5f
 
 //visualization
-#define PARTICLE_THRESHOLD 5   // minimum particles required to turn on an LED
+#define PARTICLE_THRESHOLD 3   // minimum particles required to turn on an LED
 
 
 #endif

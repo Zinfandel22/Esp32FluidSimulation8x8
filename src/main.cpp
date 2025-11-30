@@ -170,7 +170,7 @@ void runFLIPStep() {
 
   // ===== STEP 5: SAVE PREVIOUS VELOCITIES =====
   // store current grid velocities before modification
-  // needed for FLIP method which computes velocity change
+  // these will be used to restoreSolidCellVelocities
   grid.savePreviousVelocities();
 
   // ===== STEP 6: CLEAR GRID FOR TRANSFER =====
@@ -200,13 +200,19 @@ void runFLIPStep() {
   // helps prevent volume loss over time
   grid.updateParticleDensity(particles, NUM_PARTICLES);
 
-  // ===== STEP 11: SOLVE FOR INCOMPRESSIBILITY =====
+  // ===== STEP 11: SAVE PREVIOUS VELOCITIES =====
+  // Save the velocities before forcingIncompressibility so we can calculate the
+  // correct change in velocity for the FLIP update.
+  grid.savePreviousVelocities();
+
+
+  // ===== STEP 12: SOLVE FOR INCOMPRESSIBILITY =====
   // iteratively adjust velocities to minimize divergence
   // this is what makes the fluid behave like liquid (constant volume)
   // uses gauss-seidel iteration with overrelaxation
   grid.forcingIncompressibility();
 
-  // ===== STEP 12: TRANSFER VELOCITIES FROM GRID TO PARTICLES =====
+  // ===== STEP 13: TRANSFER VELOCITIES FROM GRID TO PARTICLES =====
   // interpolate corrected grid velocities back to particles
   // uses FLIP/PIC blending: FLIP preserves detail, PIC adds stability
   for (int i = 0; i < NUM_PARTICLES; i++) {
