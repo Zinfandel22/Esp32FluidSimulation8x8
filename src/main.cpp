@@ -128,11 +128,11 @@ void visualizeParticles() {
       // map brightness to density
       // darker blue for low density, bright blue for high density
       /*int brightness = map(ledCounts[i], PARTICLE_THRESHOLD, 20, 50, 255);
-      brightness = constrain(brightness, 50, 255);
-      matrix.setPixelColor(i, matrix.Color(0, 50, brightness));  // Dynamic brightness*/
+      brightness = constrain(brightness, 0, 255);
+      matrix.setPixelColor(i, matrix.Color(35, 35, brightness));  // Dynamic brightness*/
 
       // or simple solid color
-      matrix.setPixelColor(i, matrix.Color(40, 60, 255));
+      matrix.setPixelColor(i, matrix.Color(20, 20, 255));
     }
   }
 
@@ -163,7 +163,7 @@ void runFLIPStep() {
 
   // ===== STEP 2: PUSH PARTICLES APART =====
   // prevent particles from clumping together
-  grid.pushParticlesApart(particles, NUM_PARTICLES, 2);  // 1 iterations
+  grid.pushParticlesApart(particles, NUM_PARTICLES, 2);  // 2 iterations
   unsigned long t2 = micros();
 
   // ===== STEP 3: HANDLE WALL COLLISIONS =====

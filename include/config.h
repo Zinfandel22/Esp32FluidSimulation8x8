@@ -9,7 +9,7 @@
 // LED Matrix Configuration
 #define LED_PIN 14
 #define NUM_LEDS 64
-#define BRIGHTNESS 3
+#define BRIGHTNESS 5
 
 // QMI8658 Configuration
 #define QMI8658_ADDR 0x6B
@@ -33,7 +33,7 @@
 #define FRAME_INTERVAL 0.020f                        // real time between frames
 #define SPEED_MULTIPLIER 1.3f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
-#define FLIP_RATIO 0.9f                              // flip vs pic ratio
+#define FLIP_RATIO 0.8f                              // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 20              // number of incompressibility iterations
 #define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
 #define K_FACTOR 1.0f                                // stiffness factort for density correction
@@ -43,7 +43,7 @@
 
 // grid
 #define GRID_SIZE_X 32  // grid cells in x direction
-#define GRID_SIZE_Y 32  // grid cells in y direction
+#define GRID_SIZE_Y 32 // grid cells in y direction
 
 // physical dimensions of led matrix in meters
 #define PHYSICAL_WIDTH 0.5f

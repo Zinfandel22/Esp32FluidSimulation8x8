@@ -8,15 +8,11 @@ namespace utils {
 // clamp value between min and max inlined for performance
 // flaot version
 inline float __attribute__((always_inline)) clamp(float value, float min_val, float max_val) {
-  if (value < min_val) return min_val;
-  if (value > max_val) return max_val;
-  return value;
+  return fminf(fmaxf(value, min_val), max_val);
 }
-//int version
+// int version
 inline int __attribute__((always_inline)) clamp(int value, int min_val, int max_val) {
-  if (value < min_val) return min_val;
-  if (value > max_val) return max_val;
-  return value;
+  return (value < min_val) * min_val + (value >= min_val && value <= max_val) * value + (value > max_val) * max_val;
 }
 
 // quake III fast inverse square root algorithm
@@ -28,11 +24,11 @@ inline float __attribute__((always_inline)) fastInvSqrt(float number) {
 
   x2 = number * 0.5F;
   y = number;
-  i = *(long*)&y;                             // treat float bits directly as an integer to allow bit manipulation
-  i = 0x5f3759df - (i >> 1);                  // generate initial approximation using the magic number constant
-  y = *(float*)&i;                            // convert the integer bits back into a floating point number
-  y = y * (threehalfs - (x2 * y * y));        // perform one iteration of newton's method to improve precision
-  
+  i = *(long*)&y;                       // treat float bits directly as an integer to allow bit manipulation
+  i = 0x5f3759df - (i >> 1);            // generate initial approximation using the magic number constant
+  y = *(float*)&i;                      // convert the integer bits back into a floating point number
+  y = y * (threehalfs - (x2 * y * y));  // perform one iteration of newton's method to improve precision
+
   return y;
 }
 
