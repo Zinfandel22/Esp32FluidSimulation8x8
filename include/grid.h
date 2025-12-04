@@ -38,7 +38,6 @@ class Grid {
   float* vx_weight_accumulator;  // weight accumulators for vx transfer
   float* vy_weight_accumulator;  // weight accumulators for vy transfer
   grid_cell_t* cell_type;        // array of types of cell of grid
-  // add to private section of Grid class
 
   // particle spatial hash grid (for pushing particles apart)
   int p_num_x;               // number of cells in particle grid x
@@ -55,9 +54,7 @@ class Grid {
  public:
   Grid();
 
-  // compute interpolation weights and indices for specified velocity component
-  InterpolationData getInterpolationData(Particle* particle, VelocityComponent component);
-
+  
   void markCellWalls();
   void markCellWithLiquid(Particle* particle);
   void savePreviousVelocities();

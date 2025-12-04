@@ -21,10 +21,10 @@ bool initQMI8658() {
   writeRegister(QMI8658_CTRL2, 0x35);
 
   // ctrl3: gyroscope settings
-  writeRegister(QMI8658_CTRL3, 0x45);
+  //writeRegister(QMI8658_CTRL3, 0x45); only gyro used
 
   // ctrl7: enable sensors
-  writeRegister(QMI8658_CTRL7, 0x03);
+  writeRegister(QMI8658_CTRL7, 0x01); // accel only
 
   delay(100);
   return true;

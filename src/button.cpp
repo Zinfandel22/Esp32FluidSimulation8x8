@@ -20,7 +20,7 @@ ButtonHandler::ButtonHandler() {
   current_brightness_index = 0;
   current_foam_index = 0;
 
-  // define brightness presets (7 levels)
+  // brightness presets (7 levels)
   brightness_presets[0] = 3;
   brightness_presets[1] = 4;
   brightness_presets[2] = 5;
@@ -29,7 +29,7 @@ ButtonHandler::ButtonHandler() {
   brightness_presets[5] = 11;
   brightness_presets[6] = 13;
 
-  // define foam threshold presets (5 levels)
+  // foam threshold presets (5 levels)
   foam_presets[0] = 30;// no foam
   foam_presets[1] = 5;
   foam_presets[2] = 4;
@@ -39,7 +39,7 @@ ButtonHandler::ButtonHandler() {
 
 void ButtonHandler::init() {
   // configure button pin with internal pull-up
-  // we read LOW when pressed (active low)
+  // read LOW when pressed (active low)
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   // load saved settings from nvs
@@ -61,7 +61,7 @@ void ButtonHandler::loadSettings() {
   // load each setting with default fallback if key doesn't exist
   current_color_index = preferences.getInt(NVS_KEY_COLOR, 0);
   current_brightness_index = preferences.getInt(NVS_KEY_BRIGHTNESS, 0);
-  current_foam_index = preferences.getInt(NVS_KEY_FOAM, 2);  // default to middle foam level
+  current_foam_index = preferences.getInt(NVS_KEY_FOAM, 1);  // default to low foam level
 
   // validate loaded values are within range
   if (current_color_index < 0 || current_color_index >= (int)ColorPreset::NUM_PRESETS) {
@@ -71,7 +71,7 @@ void ButtonHandler::loadSettings() {
     current_brightness_index = 0;
   }
   if (current_foam_index < 0 || current_foam_index >= 5) {
-    current_foam_index = 2;
+    current_foam_index = 1;
   }
 
   preferences.end();
@@ -168,7 +168,7 @@ void ButtonHandler::update() {
       if (just_pressed) {
         // second press within window = double tap
         cycleColor();
-        // go to wait_release so we don't immediately re-trigger on next loop
+        // go to wait_release so we dont immediately re-trigger on next loop
         current_state = ButtonState::WAIT_RELEASE;
         Serial.println("Double-tap detected!");
       } else if (millis() - release_time > DOUBLE_TAP_WINDOW) {

@@ -82,6 +82,7 @@ void Grid::markCellWithLiquid(Particle* particle) {
   cell_type[cell_1d_index] = grid_cell_t::CELL_LIQUID;
 }
 
+// save previous velocities to compute change in FLIP
 void Grid::savePreviousVelocities() {
   for (int i = 0; i < size_x * size_y; i++) {
     grid_previous_vx[i] = grid_vx[i];
@@ -332,7 +333,7 @@ void Grid::forcingIncompressibility() {
         divergence = OVERRELAXATION * divergence;
 
         sum_s = s_iplus1_j + s_iminus1_j + s_i_jplus1 + s_i_jminus1;
-        float inv_sum_s = 1.0f / sum_s;  // compute inverse only one to avoid division as much as possible
+        float inv_sum_s = 1.0f / sum_s;  // compute inverse only once to avoid division as much as possible
         if (sum_s == 0) {
           continue;
         }
@@ -407,7 +408,7 @@ void Grid::transferVelocityfromGridToParticle(Particle* particle) {
   int vx_index_01 = vx_base_index + 1;           // top left
 
   // offset to find the neighboring cell that shares this velocity
-  // u velocities sit on vertical faces between cell (i-1,j) and cell (i,j)
+  // vx velocities sit on vertical faces between cell (i-1,j) and cell (i,j)
   // in column-major layout, moving left one cell means subtracting size_y
   int vx_offset = size_y;
 
@@ -573,7 +574,7 @@ void Grid::handleParticleCollision(Particle* particle) {
   float vy = particle->vy;
 
   // bounce off the wall with RESTITUTION_FACTOR * velocity
-  //friction that slows particles in direction of wall
+  //FRICTIONJ_FACTOR slows particles in direction of wall
 
   // check left wall
   if (x < min_x) {
@@ -600,11 +601,11 @@ void Grid::handleParticleCollision(Particle* particle) {
     vx = vx * FRICTION_FACTOR;
   }
 
-  // update particle (you'll need position setters)
-  particle->x_pos = (x);
-  particle->y_pos = (y);
-  particle->vx = (vx);
-  particle->vy = (vy);
+  // update particle
+  particle->x_pos = x;
+  particle->y_pos = y;
+  particle->vx = vx;
+  particle->vy = vy;
 }
 
 void Grid::initParticleSpatialHash(int max_particles, float p_radius) {
@@ -637,7 +638,7 @@ void Grid::pushParticlesApart(Particle* particles, int num_particles, int num_it
 
   int p_num_cells = p_num_x * p_num_y;
 
-  // ----- step 1: count particles per cell -----
+  // *** step 1: count particles per cell ***
 
   for (int i = 0; i < p_num_cells; i++) {
     num_cell_particles[i] = 0;
@@ -655,7 +656,7 @@ void Grid::pushParticlesApart(Particle* particles, int num_particles, int num_it
     num_cell_particles[cell_nr]++;
   }
 
-  // ----- step 2: compute partial sums to get starting indices -----
+  // *** step 2: compute partial sums to get starting indices ***
 
   // after this, first_cell_particle[i] will point to where cell i's
   // particles END in the cell_particle_ids array (we fill backwards)
@@ -666,7 +667,7 @@ void Grid::pushParticlesApart(Particle* particles, int num_particles, int num_it
   }
   first_cell_particle[p_num_cells] = first;  // guard element
 
-  // ----- step 3: fill particles into cells (backwards) -----
+  // *** step 3: fill particles into cells (backwards) ***
 
   for (int i = 0; i < num_particles; i++) {
     float x = particles[i].x_pos;
@@ -681,7 +682,7 @@ void Grid::pushParticlesApart(Particle* particles, int num_particles, int num_it
     cell_particle_ids[first_cell_particle[cell_nr]] = i;
   }
 
-  // ----- step 4: push particles apart -----
+  // *** step 4: push particles apart ***
 
   float min_dist = 2.0f * particle_radius;
   float min_dist_squared = min_dist * min_dist;
@@ -716,7 +717,7 @@ void Grid::pushParticlesApart(Particle* particles, int num_particles, int num_it
             if (id == i) continue;
             // symmetric check: skip if we've already handled this pair
             // when we processed particle 'id' we already pushed it away from 'i'
-            // t his effectively halves the number of expensive distance checks
+            // this reduces the number of expensive distance checks
             if (id <= i) continue;
 
             float qx = particles[id].x_pos;

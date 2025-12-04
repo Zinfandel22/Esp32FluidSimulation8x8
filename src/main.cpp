@@ -225,7 +225,7 @@ void runFLIPStep() {
   // compute how many particles are in each cell (using bilinear weights)
   grid.updateParticleDensity(particles, NUM_PARTICLES);
 
-  // Save the velocities before forcingIncompressibility so we can calculate the
+  // save the velocities before forcingIncompressibility so we can calculate the
   // correct change in velocity for the FLIP update.
   grid.savePreviousVelocities();
   unsigned long t6 = micros();
@@ -313,11 +313,11 @@ void setup() {
 
   // initialize spatial hash grid for particle separation
   // this allocates memory for pushParticlesApart() and updateParticleDensity()
-  // must be called AFTER particleRadius is calculated in initializeParticles()
+  // must be called after particleRadius is calculated in initializeParticles()
   Serial.println("Initializing spatial hash grid...");
   grid.initParticleSpatialHash(NUM_PARTICLES, particleRadius);
 
-  // Initialize grid boundaries (walls) safely after boot
+  // initialize grid boundaries (walls) safely after boot
   grid.markCellWalls();
 
   // print configuration

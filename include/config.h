@@ -9,7 +9,7 @@
 // LED Matrix Configuration
 #define LED_PIN 14
 #define NUM_LEDS 64
-#define BRIGHTNESS 5
+//#define BRIGHTNESS 5 configurable in button
 
 // QMI8658 Configuration
 #define QMI8658_ADDR 0x6B
@@ -23,8 +23,8 @@
 #define QMI8658_CTRL3 0x04
 #define QMI8658_CTRL7 0x08
 #define QMI8658_ACC_X_L 0x35
-#define QMI8658_GYR_X_L 0x3B
-#define QMI8658_TEMP_L 0x33
+//#define QMI8658_GYR_X_L 0x3B
+//#define QMI8658_TEMP_L 0x33
 
 //button
 #define BUTTON_PIN 5
@@ -45,7 +45,7 @@
 // general
 #define GRAVITY_MAGNITUDE 9.81f                      // gravity magnitude in m/s^2
 #define FRAME_INTERVAL 0.023f                        // real time between frames
-#define SPEED_MULTIPLIER 1.25f                        // adjust this to control speed
+#define SPEED_MULTIPLIER 1.2f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
 #define FLIP_RATIO 0.8f                              // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 30              // number of incompressibility iterations
@@ -67,6 +67,6 @@
 
 // visualization
 #define PARTICLE_THRESHOLD 5.0f
-#define PARTICLE_THRESHOLD_FOAM 5.0f
+//#define PARTICLE_THRESHOLD_FOAM 5.0f  configurable with the button
 
 #endif
