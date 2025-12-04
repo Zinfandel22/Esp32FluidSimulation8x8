@@ -248,38 +248,44 @@ int ButtonHandler::getCurrentFoamThreshold() {
 }
 
 void ButtonHandler::getCurrentColorRGB(uint8_t* r, uint8_t* g, uint8_t* b) {
-  // convert color preset enum to rgb values
   switch (getCurrentColor()) {
-    case ColorPreset::BLUE:
-      *r = 0;
-      *g = 0;
-      *b = 255;
-      break;
-    case ColorPreset::CYAN:
-      *r = 0;
-      *g = 255;
-      *b = 255;
-      break;
-    case ColorPreset::GREEN:
-      *r = 0;
-      *g = 255;
-      *b = 0;
-      break;
-    case ColorPreset::PINK:
-      *r = 255;
-      *g = 50;
-      *b = 150;
-      break;
-    case ColorPreset::WHITE:
-      *r = 255;
-      *g = 255;
-      *b = 255;
-      break;
+
+    // blues & cyans
+    case ColorPreset::BLUE_1:   *r = 0;   *g = 0;   *b = 255; break;
+    case ColorPreset::BLUE_2:   *r = 0;   *g = 255; *b = 255; break;
+    case ColorPreset::BLUE_3:   *r = 0;   *g = 140; *b = 255; break;
+    case ColorPreset::BLUE_4:   *r = 0;   *g = 240; *b = 140; break;
+
+
+    // greens
+    case ColorPreset::GREEN_1:  *r = 0;   *g = 255; *b = 0;   break;
+    case ColorPreset::GREEN_2:  *r = 130; *g = 255; *b = 0;   break;
+ 
+
+    // reds
+    case ColorPreset::RED_1:    *r = 255; *g = 0;   *b = 0;   break;
+    case ColorPreset::RED_2:    *r = 200; *g = 0;   *b = 40;  break;
+
+    // oranges & yellows
+    case ColorPreset::ORANGE_1: *r = 255; *g = 90;  *b = 0;   break;
+    case ColorPreset::YELLOW_1: *r = 255; *g = 220; *b = 0;   break;
+    case ColorPreset::YELLOW_2: *r = 255; *g = 160; *b = 0;   break;
+    
+
+    // purples
+    case ColorPreset::PURPLE_1: *r = 180; *g = 0;   *b = 255; break;
+    case ColorPreset::PURPLE_2: *r = 180; *g = 130; *b = 255; break;
+    case ColorPreset::PURPLE_3:   *r = 60;  *g = 0;   *b = 255; break;
+
+    // pinks & magentas
+    case ColorPreset::PINK_1:   *r = 255; *g = 50;  *b = 150; break;
+    case ColorPreset::PINK_2:   *r = 255; *g = 0;   *b = 220; break;
+
+    // white
+    case ColorPreset::WHITE:    *r = 255; *g = 255; *b = 255; break;
+
     default:
-      // fallback to blue if somehow invalid
-      *r = 0;
-      *g = 0;
-      *b = 255;
+      *r = 0; *g = 0; *b = 255;
       break;
   }
 }

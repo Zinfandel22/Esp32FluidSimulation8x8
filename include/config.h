@@ -44,11 +44,11 @@
 
 // general
 #define GRAVITY_MAGNITUDE 9.81f                      // gravity magnitude in m/s^2
-#define FRAME_INTERVAL 0.0195f                        // real time between frames
+#define FRAME_INTERVAL 0.023f                        // real time between frames
 #define SPEED_MULTIPLIER 1.25f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
 #define FLIP_RATIO 0.8f                              // flip vs pic ratio
-#define INCOMPRESSIBILITY_ITERATIONS 20              // number of incompressibility iterations
+#define INCOMPRESSIBILITY_ITERATIONS 30              // number of incompressibility iterations
 #define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
 #define K_FACTOR 1.0f                                // stiffness factort for density correction
 

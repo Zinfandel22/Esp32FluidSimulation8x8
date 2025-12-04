@@ -15,13 +15,41 @@ enum class ButtonState {
 
 // color presets
 enum class ColorPreset {
-  BLUE,
-  CYAN,
-  GREEN,
-  PINK,
+  // blues & cyans
+  BLUE_1,   
+  BLUE_2,   
+  BLUE_3,   
+  BLUE_4,    
+
+  // greens
+  GREEN_1,  
+  GREEN_2,  
+
+  // reds
+  RED_1,    
+  RED_2,    
+
+  // oranges & yellows
+  ORANGE_1, 
+  YELLOW_1, 
+  YELLOW_2, 
+
+  // purples
+  PURPLE_1, 
+  PURPLE_2,
+  PURPLE_3,
+
+  // pinks & magentas
+  PINK_1,   
+  PINK_2,   
+
+  // white
   WHITE,
-  NUM_PRESETS
+
+  NUM_PRESETS // total
 };
+
+
 
 class ButtonHandler {
  private:
