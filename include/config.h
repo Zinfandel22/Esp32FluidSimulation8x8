@@ -26,12 +26,26 @@
 #define QMI8658_GYR_X_L 0x3B
 #define QMI8658_TEMP_L 0x33
 
+//button
+#define BUTTON_PIN 5
+
+// timing thresholds in milliseconds
+#define DEBOUNCE_TIME 25
+#define LONG_PRESS_THRESHOLD 600
+#define DOUBLE_TAP_WINDOW 250
+
+// NVS namespace for storing settings
+#define NVS_NAMESPACE "fluid_settings"
+#define NVS_KEY_COLOR "color"
+#define NVS_KEY_BRIGHTNESS "brightness"
+#define NVS_KEY_FOAM "foam"
+
 //------simulation constants------
 
 // general
 #define GRAVITY_MAGNITUDE 9.81f                      // gravity magnitude in m/s^2
 #define FRAME_INTERVAL 0.020f                        // real time between frames
-#define SPEED_MULTIPLIER 1.3f                        // adjust this to control speed
+#define SPEED_MULTIPLIER 1.25f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
 #define FLIP_RATIO 0.8f                              // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 20              // number of incompressibility iterations
@@ -40,6 +54,8 @@
 
 // particles
 #define NUM_PARTICLES 850  // number of fluid particles
+#define RESTITUTION_FACTOR 0.0f//percentaje of velocity perserved when bouncing off a wall
+#define FRICTION_FACTOR 0.0f // percentaje of conserved velocity in direction of wall
 
 // grid
 #define GRID_SIZE_X 32  // grid cells in x direction
@@ -51,5 +67,6 @@
 
 // visualization
 #define PARTICLE_THRESHOLD 5.0f
+#define PARTICLE_THRESHOLD_FOAM 5.0f
 
 #endif

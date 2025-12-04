@@ -2,11 +2,13 @@
 #include "grid.h"
 #include "particle.h"
 #include "utils.h"
+#include "button.h"
 
 // global instances
 Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_RGB + NEO_KHZ800);
 Grid grid;                          // single grid instance for the simulation
 Particle particles[NUM_PARTICLES];  // array of all particles
+ButtonHandler button;               // button
 
 // timing control for fixed timestep
 unsigned long lastStepTime = 0;
@@ -121,18 +123,33 @@ void visualizeParticles() {
       ledCounts[led_index]++;
     }
   }
+  // get current color and brightness from button handler
+  uint8_t base_r, base_g, base_b;
+  button.getCurrentColorRGB(&base_r, &base_g, &base_b);
+  int brightness = button.getCurrentBrightness();
 
-  // turn on LEDs that meet the threshold
+  // scale base color by brightness setting (0-255 range)
+  // this gives us the maximum intensity for this brightness level
+  uint8_t scaled_r = (base_r * brightness) / 255;
+  uint8_t scaled_g = (base_g * brightness) / 255;
+  uint8_t scaled_b = (base_b * brightness) / 255;
+
+  // get current foam threshold
+  int foam_threshold = button.getCurrentFoamThreshold();
+
+  // turn on LEDs with scaled colors
   for (int i = 0; i < NUM_LEDS; i++) {
-    if (ledCounts[i] >= PARTICLE_THRESHOLD) {
-      // map brightness to density
-      // darker blue for low density, bright blue for high density
-      /*int brightness = map(ledCounts[i], PARTICLE_THRESHOLD, 20, 50, 255);
-      brightness = constrain(brightness, 0, 255);
-      matrix.setPixelColor(i, matrix.Color(35, 35, brightness));  // Dynamic brightness*/
+    if (ledCounts[i] > PARTICLE_THRESHOLD) {
+      // full intensity liquid - use full scaled brightness
+      matrix.setPixelColor(i, matrix.Color(scaled_r, scaled_g, scaled_b));
 
-      // or simple solid color
-      matrix.setPixelColor(i, matrix.Color(20, 20, 255));
+    } else if (ledCounts[i] >= foam_threshold) {
+      // white foam effect (30% of scaled brightness)
+      uint8_t foam = 0.3f * brightness;
+      matrix.setPixelColor(i, matrix.Color(foam, foam, foam));
+
+    } else {
+      matrix.setPixelColor(i, matrix.Color(0, 0, 0));
     }
   }
 
@@ -179,10 +196,10 @@ void runFLIPStep() {
   for (int i = 0; i < NUM_PARTICLES; i++) {
     grid.markCellWithLiquid(&particles[i]);
   }
-  
+
   // store current grid velocities before modification (used to restoreSolidCellVelocities)
   grid.savePreviousVelocities();
-  
+
   // zero out velocities and weight accumulators
   grid.clearVelocitiesAndWeights();
   unsigned long t4 = micros();
@@ -192,10 +209,10 @@ void runFLIPStep() {
   for (int i = 0; i < NUM_PARTICLES; i++) {
     grid.transferVelocityfromParticleToGrid(&particles[i]);
   }
-  
+
   // divide accumulated velocities by accumulated weights
   grid.normalizeGridVelocities();
-  
+
   // restore solid boundary velocities
   grid.restoreSolidCellVelocities();
   unsigned long t5 = micros();
@@ -203,7 +220,7 @@ void runFLIPStep() {
   // ===== STEP 10-11: DENSITY =====
   // compute how many particles are in each cell (using bilinear weights)
   grid.updateParticleDensity(particles, NUM_PARTICLES);
-  
+
   // Save the velocities before forcingIncompressibility so we can calculate the
   // correct change in velocity for the FLIP update.
   grid.savePreviousVelocities();
@@ -223,13 +240,13 @@ void runFLIPStep() {
 
   // Convert micros to milliseconds for display
   t_integrate = (t1 - t0) / 1000.0f;
-  t_push      = (t2 - t1) / 1000.0f;
+  t_push = (t2 - t1) / 1000.0f;
   t_collision = (t3 - t2) / 1000.0f;
   t_grid_prep = (t4 - t3) / 1000.0f;
-  t_p2g       = (t5 - t4) / 1000.0f;
-  t_density   = (t6 - t5) / 1000.0f;
-  t_solve     = (t7 - t6) / 1000.0f;
-  t_g2p       = (t8 - t7) / 1000.0f;
+  t_p2g = (t5 - t4) / 1000.0f;
+  t_density = (t6 - t5) / 1000.0f;
+  t_solve = (t7 - t6) / 1000.0f;
+  t_g2p = (t8 - t7) / 1000.0f;
 }
 
 void setup() {
@@ -243,13 +260,17 @@ void setup() {
 
   // initialize led matrix
   matrix.begin();
-  matrix.setBrightness(BRIGHTNESS);
   matrix.clear();
   matrix.show();
 
+  // initialize button handler
+  // this loads saved settings from NVS
+  Serial.println("Initializing button...");
+  button.init();
+
   // initialize i2c for accelerometer
   Wire.begin(SDA_PIN, SCL_PIN);
-  Wire.setClock(400000);  // 400khz i2c speed
+  Wire.setClock(400000);
   delay(100);
 
   // initialize qmi8658 accelerometer
@@ -318,7 +339,9 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
   const unsigned long stepInterval = (unsigned long)(FRAME_INTERVAL * 1000.0f);
-  
+
+  button.update();
+
   // only run simulation step when enough time has passed for fixed timestep
   if (currentTime - lastStepTime >= stepInterval) {
     lastStepTime = currentTime;
@@ -335,10 +358,10 @@ void loop() {
     t_vis = (micros() - t_vis_start) / 1000.0f;
 
     // print debug info every second
-    static unsigned long lastPrintTime = 0;
+    /*static unsigned long lastPrintTime = 0;
     if (currentTime - lastPrintTime > 1000) {
       float total_ms = t_integrate + t_push + t_collision + t_grid_prep + t_p2g + t_density + t_solve + t_g2p + t_vis;
-      float max_fps = 1000.0f / total_ms; // Theoretical max FPS based on calc time
+      float max_fps = 1000.0f / total_ms;  // Theoretical max FPS based on calc time
 
       Serial.println("\n--- Performance Stats ---");
       Serial.printf("Total Frame Time: %.2f ms | Max FPS: %.1f\n", total_ms, max_fps);
@@ -354,6 +377,6 @@ void loop() {
       Serial.printf("  9. Visualize: %.2f ms\n", t_vis);
 
       lastPrintTime = currentTime;
-    }
+    }*/
   }
 }

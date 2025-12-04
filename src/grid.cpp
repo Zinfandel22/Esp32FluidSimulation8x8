@@ -572,34 +572,32 @@ void Grid::handleParticleCollision(Particle* particle) {
   float vx = particle->vx;
   float vy = particle->vy;
 
-  // bounce off the wall with restitution * velocity
-  float restitution = 0.0f;
+  // bounce off the wall with RESTITUTION_FACTOR * velocity
   //friction that slows particles in direction of wall
-  float friction_factor = 0.85f;
 
   // check left wall
   if (x < min_x) {
     x = min_x;
-    vx = -vx * restitution;  // Bounce instead of stick
-    vy = vy * friction_factor; // Apply friction to sliding
+    vx = -vx * RESTITUTION_FACTOR;  // bounce instead of stick
+    vy = vy * FRICTION_FACTOR; // apply friction to sliding
   }
   // check right wall
   if (x > max_x) {
     x = max_x;
-    vx = -vx * restitution;
-    vy = vy * friction_factor;
+    vx = -vx * RESTITUTION_FACTOR;
+    vy = vy * FRICTION_FACTOR;
   }
   // check bottom wall
   if (y < min_y) {
     y = min_y;
-    vy = -vy * restitution;
-    vx = vx * friction_factor;
+    vy = -vy * RESTITUTION_FACTOR;
+    vx = vx * FRICTION_FACTOR;
   }
   // check top wall
   if (y > max_y) {
     y = max_y;
-    vy = -vy * restitution;
-    vx = vx * friction_factor;
+    vy = -vy * RESTITUTION_FACTOR;
+    vx = vx * FRICTION_FACTOR;
   }
 
   // update particle (you'll need position setters)
