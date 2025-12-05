@@ -49,8 +49,9 @@ void initializeParticles() {
   particleRadius = 0.3f * cell_size;
 
   // particle spacing: diameter with slight overlap for dense packing
-  // reference uses dx = 2.0 * r for horizontal, dy = sqrt(3)/2 * dx for vertical (hexagonal)
-  float dx = 2.0f * particleRadius;
+  // dx = 2.0 * r for horizontal, dy = sqrt(3)/2 * dx for vertical (hexagonal)
+  // initialize tightly packed(1.8 radius) to increase rest density
+  float dx = 1.8f * particleRadius;
   float dy = sqrtf(3.0f) / 2.0f * dx;
 
   // calculate how many particles fit in each dimension

@@ -47,15 +47,15 @@
 #define FRAME_INTERVAL 0.023f                        // real time between frames
 #define SPEED_MULTIPLIER 1.2f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
-#define FLIP_RATIO 0.8f                              // flip vs pic ratio
+#define FLIP_RATIO 0.9f                              // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 30              // number of incompressibility iterations
 #define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
-#define K_FACTOR 1.0f                                // stiffness factort for density correction
+#define K_FACTOR 1.0f                                // stiffness factor for density correction
 
 // particles
 #define NUM_PARTICLES 850  // number of fluid particles
-#define RESTITUTION_FACTOR 0.0f//percentaje of velocity perserved when bouncing off a wall
-#define FRICTION_FACTOR 0.0f // percentaje of conserved velocity in direction of wall
+#define RESTITUTION_FACTOR 0.2f//percentaje of velocity perserved when bouncing off a wall
+#define FRICTION_FACTOR 0.2f // percentaje of conserved velocity in direction of wall
 
 // grid
 #define GRID_SIZE_X 32  // grid cells in x direction

@@ -11,19 +11,6 @@ enum class grid_cell_t { CELL_LIQUID, CELL_AIR, CELL_WALL };
 // velocity component selector for interpolation
 enum class VelocityComponent { VX, VY };
 
-// struct to hold bilinear interpolation indices and weights
-// used for transferring velocities between particles and grid
-struct InterpolationData {
-  int index_00;   // bottom left corner index in 1D array
-  int index_10;   // bottom right corner index in 1D array
-  int index_11;   // top right corner index in 1D array
-  int index_01;   // top left corner index in 1D array
-  float weight1;  // weight for bottom left
-  float weight2;  // weight for bottom right
-  float weight3;  // weight for top right
-  float weight4;  // weight for top left
-};
-
 class Grid {
  private:
   int size_x, size_y;   // size x * y
