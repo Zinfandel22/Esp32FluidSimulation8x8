@@ -13,12 +13,16 @@ Main objective is to implement a particle-based fluid dynamics simulation using 
 
 ## Assembly
 ### Solder de components together using AWG30 wires
+
 <img width="478" height="350" alt="guts" src="https://github.com/user-attachments/assets/23cf3dd8-04e4-4dfe-a456-4fdc2e495380" />
 ### Design and print the casing
+
 <img width="482" height="350" alt="casing" src="https://github.com/user-attachments/assets/28c9bfaa-b1ef-40e2-9b1b-5ab7b9efb6e8" />
 ### Place the components in casing
+
 <img width="482" height="350" alt="casing" src="https://github.com/user-attachments/assets/de4b21bf-6d72-4db8-b73f-55316a5819d2" />
 ### Finished product
+
 <img width="1135" height="1500" alt="finished2" src="https://github.com/user-attachments/assets/a118e2cc-514e-43a4-b093-3f5e72528e4d" />
 
 
