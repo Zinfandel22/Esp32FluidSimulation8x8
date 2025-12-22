@@ -14,6 +14,7 @@ enum class VelocityComponent { VX, VY };
 class Grid {
  private:
   int size_x, size_y;   // size x * y
+  int num_cells;        // total number of cells
   float cell_size;      // physical size of one grid cell
   float inv_cell_size;  // inverse of cell size to avoid division
 
@@ -41,7 +42,6 @@ class Grid {
  public:
   Grid();
 
-  
   void markCellWalls();
   void markCellWithLiquid(Particle* particle);
   void savePreviousVelocities();

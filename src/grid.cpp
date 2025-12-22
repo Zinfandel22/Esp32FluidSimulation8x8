@@ -41,7 +41,7 @@ Grid::Grid() {
 
 void Grid::markCellWalls() {
   // reset all to air
-  for (int i = 0; i < size_x * size_y; i++) {
+  for (int i = 0; i < num_cells; i++) {
     cell_type[i] = grid_cell_t::CELL_AIR;
   }
 
@@ -84,14 +84,14 @@ void Grid::markCellWithLiquid(Particle* particle) {
 
 // save previous velocities to compute change in FLIP
 void Grid::savePreviousVelocities() {
-  for (int i = 0; i < size_x * size_y; i++) {
+  for (int i = 0; i < num_cells; i++) {
     grid_previous_vx[i] = grid_vx[i];
     grid_previous_vy[i] = grid_vy[i];
   }
 }
 
 void Grid::clearVelocitiesAndWeights() {
-  for (int i = 0; i < size_x * size_y; i++) {
+  for (int i = 0; i < num_cells; i++) {
     grid_vx[i] = 0.0f;
     grid_vy[i] = 0.0f;
     vx_weight_accumulator[i] = 0.0f;
@@ -100,7 +100,7 @@ void Grid::clearVelocitiesAndWeights() {
 }
 
 void Grid::resetCellTypesToAir() {
-  for (int i = 0; i < size_x * size_y; i++) {
+  for (int i = 0; i < num_cells; i++) {
     if (cell_type[i] != grid_cell_t::CELL_WALL) {
       cell_type[i] = grid_cell_t::CELL_AIR;
     }
@@ -273,7 +273,7 @@ void Grid::transferVelocityfromParticleToGrid(Particle* particle) {
 // normalize cell corner velocities dividing by the weight accumualtor
 // once per cell on every cell that had a particle contributing
 void Grid::normalizeGridVelocities() {
-  int num_cells = size_x * size_y;
+
 
   for (int i = 0; i < num_cells; i++) {
     // only divide if some particle contributed to this cell
@@ -574,13 +574,13 @@ void Grid::handleParticleCollision(Particle* particle) {
   float vy = particle->vy;
 
   // bounce off the wall with RESTITUTION_FACTOR * velocity
-  //FRICTIONJ_FACTOR slows particles in direction of wall
+  // FRICTIONJ_FACTOR slows particles in direction of wall
 
   // check left wall
   if (x < min_x) {
     x = min_x;
     vx = -vx * RESTITUTION_FACTOR;  // bounce instead of stick
-    vy = vy * FRICTION_FACTOR; // apply friction to sliding
+    vy = vy * FRICTION_FACTOR;      // apply friction to sliding
   }
   // check right wall
   if (x > max_x) {
@@ -627,7 +627,7 @@ void Grid::initParticleSpatialHash(int max_particles, float p_radius) {
   cell_particle_ids = new int[max_particles];
 
   // allocate particle density array (same size as velocity grid)
-  particle_density = new float[size_x * size_y];
+  particle_density = new float[num_cells];
   particle_rest_density = 0.0f;
 }
 
@@ -767,7 +767,7 @@ void Grid::updateParticleDensity(Particle* particles, int num_particles) {
   float h2 = 0.5f * cell_size;  // half cell size for centering
 
   // clear density array
-  for (int i = 0; i < size_x * size_y; i++) {
+  for (int i = 0; i < num_cells; i++) {
     particle_density[i] = 0.0f;
   }
 
@@ -806,7 +806,7 @@ void Grid::updateParticleDensity(Particle* particles, int num_particles) {
     float sum = 0.0f;
     int num_fluid_cells = 0;
 
-    for (int i = 0; i < size_x * size_y; i++) {
+    for (int i = 0; i < num_cells; i++) {
       if (cell_type[i] == grid_cell_t::CELL_LIQUID) {
         sum += particle_density[i];
         num_fluid_cells++;
