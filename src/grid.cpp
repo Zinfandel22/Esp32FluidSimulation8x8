@@ -3,7 +3,7 @@
 Grid::Grid() {
   size_x = GRID_SIZE_X;
   size_y = GRID_SIZE_Y;
-  int num_cells = size_x * size_y;
+  num_cells = size_x * size_y;
 
   // calculate cell spacing based on physical size and grid resolution
   float cell_size_x = PHYSICAL_WIDTH / size_x;
