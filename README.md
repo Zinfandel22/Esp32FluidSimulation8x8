@@ -3,6 +3,35 @@ FLIP (+ PIC) fluid simulation on ESP32-S3 with 8x8 LED matrix display and accele
 
 Main objective is to implement a particle-based fluid dynamics simulation using the FLIP method on embedded hardware, exploring the challenges of real-time physics calculations with limited computational resources while creating an interactive, visually appealing display.
 
+## Table of Contents
+- [Hardware Components](#hardware-components)
+- [Assembly](#assembly)
+- [Pinout Configuration](#pinout-configuration)
+- [Physical Setup](#physical-setup)
+- [Key Features](#key-features)
+  - [FLIP Fluid Simulation](#flip-fluid-simulation)
+  - [Incompressibility Solver](#incompressibility-solver)
+  - [Particle Dynamics Pipeline](#particle-dynamics-pipeline)
+  - [Spatial Hash Grid](#spatial-hash-grid)
+  - [Bilinear Interpolation](#bilinear-interpolation)
+  - [Button Control System](#button-control-system)
+  - [Color Presets](#color-presets)
+  - [Visualization](#visualization)
+  - [Accelerometer Integration](#accelerometer-integration)
+- [Technical Specifications](#technical-specifications)
+  - [Performance](#performance)
+  - [Memory Usage](#memory-usage)
+  - [Compiler Optimizations](#compiler-optimizations)
+- [Algorithm Details](#algorithm-details)
+  - [FLIP Method](#flip-method)
+  - [Pressure Projection](#pressure-projection)
+  - [Particle Collision](#particle-collision)
+- [Build Environment](#build-environment)
+- [Configuration Options](#configuration-options)
+- [Usage](#usage)
+- [Credit](#credit)
+- [License](#license)
+
 ## Hardware Components
 - Waveshare ESP32-S3-Matrix Development Board with 8x8 led matrix and QMI8658 6-Axis IMU (Accelerometer + Gyroscope) integrated
 - Momentary Push Button
