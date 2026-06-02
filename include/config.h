@@ -48,25 +48,25 @@
 #define SPEED_MULTIPLIER 1.2f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
 #define FLIP_RATIO 0.9f                              // flip vs pic ratio
-#define INCOMPRESSIBILITY_ITERATIONS 30              // number of incompressibility iterations
+#define INCOMPRESSIBILITY_ITERATIONS 15              // number of incompressibility iterations
 #define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
 #define K_FACTOR 1.0f                                // stiffness factor for density correction
 
 // particles
-#define NUM_PARTICLES 850  // number of fluid particles
+#define NUM_PARTICLES 400  // number of fluid particles
 #define RESTITUTION_FACTOR 0.2f//percentaje of velocity perserved when bouncing off a wall
 #define FRICTION_FACTOR 0.2f // percentaje of conserved velocity in direction of wall
 
 // grid
-#define GRID_SIZE_X 32  // grid cells in x direction
-#define GRID_SIZE_Y 32 // grid cells in y direction
+#define GRID_SIZE_X 20  // grid cells in x direction
+#define GRID_SIZE_Y 20 // grid cells in y direction
 
 // physical dimensions of led matrix in meters
 #define PHYSICAL_WIDTH 0.5f
 #define PHYSICAL_HEIGHT 0.5f
 
 // visualization
-#define PARTICLE_THRESHOLD 5.0f
+#define PARTICLE_THRESHOLD 2.0f
 //#define PARTICLE_THRESHOLD_FOAM 5.0f  configurable with the button
 
 #endif
