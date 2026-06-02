@@ -23,6 +23,8 @@ Grid::Grid() {
   particle_density = nullptr;
   particle_rest_density = 0.0f;
   particle_radius = 0.0f;
+  liquid_cell_ids = new int[num_cells];
+  num_liquid_cells = 0;
   p_num_x = 0;
   p_num_y = 0;
   p_inv_spacing = 0.0f;
@@ -79,6 +81,9 @@ void Grid::markCellWithLiquid(Particle* particle) {
   cell_j = utils::clamp(cell_j, 1, size_y - 2);
 
   int cell_1d_index = cell_i * size_y + cell_j;
+  if (cell_type[cell_1d_index] == grid_cell_t::CELL_AIR) {
+    liquid_cell_ids[num_liquid_cells++] = cell_1d_index;
+  }
   cell_type[cell_1d_index] = grid_cell_t::CELL_LIQUID;
 }
 
@@ -100,6 +105,7 @@ void Grid::clearVelocitiesAndWeights() {
 }
 
 void Grid::resetCellTypesToAir() {
+  num_liquid_cells = 0;
   for (int i = 0; i < num_cells; i++) {
     if (cell_type[i] != grid_cell_t::CELL_WALL) {
       cell_type[i] = grid_cell_t::CELL_AIR;
@@ -293,56 +299,50 @@ void Grid::forcingIncompressibility() {
   float vx_iplus1_j, vx_i_j, vy_i_jplus1, vy_i_j;
 
   for (int iter = 0; iter < INCOMPRESSIBILITY_ITERATIONS; iter++) {
-    for (int i = 1; i < size_x - 1; i++) {
-      for (int j = 1; j < size_y - 1; j++) {
-        index_iplus1_j = (i + 1) * size_y + j;
-        index_i_j = i * size_y + j;
-        index_i_jplus1 = i * size_y + (j + 1);
+    for (int cell = 0; cell < num_liquid_cells; cell++) {
+      index_i_j = liquid_cell_ids[cell];
 
-        index_iminus1_j = (i - 1) * size_y + j;
-        index_i_jminus1 = i * size_y + (j - 1);
+      index_iplus1_j = index_i_j + size_y;
+      index_i_jplus1 = index_i_j + 1;
 
-        if (cell_type[index_i_j] != grid_cell_t::CELL_LIQUID) {
-          continue;
+      index_iminus1_j = index_i_j - size_y;
+      index_i_jminus1 = index_i_j - 1;
+
+      // s = 1 if not wall, 0 if wall
+      float s_iplus1_j = (cell_type[index_iplus1_j] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
+      float s_iminus1_j = (cell_type[index_iminus1_j] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
+      float s_i_jplus1 = (cell_type[index_i_jplus1] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
+      float s_i_jminus1 = (cell_type[index_i_jminus1] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
+
+      vx_iplus1_j = grid_vx[index_iplus1_j];  // right vx
+      vx_i_j = grid_vx[index_i_j];            // left vx
+      vy_i_jplus1 = grid_vy[index_i_jplus1];  // top vy
+      vy_i_j = grid_vy[index_i_j];            // bottom vy
+
+      // compute velocity divergence (how much flow is leaving the cell)
+      divergence = vx_iplus1_j - vx_i_j + vy_i_jplus1 - vy_i_j;
+
+      // drift compensation: if local density is higher than rest density,
+      // add extra divergence to push particles apart and prevent volume loss
+      if (particle_density != nullptr && particle_rest_density > 0.0f) {
+        float compression = particle_density[index_i_j] - particle_rest_density;
+        if (compression > 0.0f) {
+          divergence = divergence - (K_FACTOR * compression);
         }
-
-        // s = 1 if not wall, 0 if wall
-        float s_iplus1_j = (cell_type[index_iplus1_j] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
-        float s_iminus1_j = (cell_type[index_iminus1_j] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
-        float s_i_jplus1 = (cell_type[index_i_jplus1] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
-        float s_i_jminus1 = (cell_type[index_i_jminus1] != grid_cell_t::CELL_WALL) ? 1.0f : 0.0f;
-
-        vx_iplus1_j = grid_vx[index_iplus1_j];  // right vx
-        vx_i_j = grid_vx[index_i_j];            // left vx
-        vy_i_jplus1 = grid_vy[index_i_jplus1];  // top vy
-        vy_i_j = grid_vy[index_i_j];            // bottom vy
-
-        // compute velocity divergence (how much flow is leaving the cell)
-        divergence = vx_iplus1_j - vx_i_j + vy_i_jplus1 - vy_i_j;
-
-        // drift compensation: if local density is higher than rest density,
-        // add extra divergence to push particles apart and prevent volume loss
-        if (particle_density != nullptr && particle_rest_density > 0.0f) {
-          float compression = particle_density[index_i_j] - particle_rest_density;
-          if (compression > 0.0f) {
-            // k = 1.0 is the stiffness of the density correction
-            divergence = divergence - (K_FACTOR * compression);
-          }
-        }
-
-        divergence = OVERRELAXATION * divergence;
-
-        sum_s = s_iplus1_j + s_iminus1_j + s_i_jplus1 + s_i_jminus1;
-        float inv_sum_s = 1.0f / sum_s;  // compute inverse only once to avoid division as much as possible
-        if (sum_s == 0) {
-          continue;
-        }
-
-        grid_vx[index_i_j] = grid_vx[index_i_j] + (divergence * (s_iminus1_j * inv_sum_s));
-        grid_vx[index_iplus1_j] = grid_vx[index_iplus1_j] - (divergence * (s_iplus1_j * inv_sum_s));
-        grid_vy[index_i_j] = grid_vy[index_i_j] + (divergence * (s_i_jminus1 * inv_sum_s));
-        grid_vy[index_i_jplus1] = grid_vy[index_i_jplus1] - (divergence * (s_i_jplus1 * inv_sum_s));
       }
+
+      divergence = OVERRELAXATION * divergence;
+
+      sum_s = s_iplus1_j + s_iminus1_j + s_i_jplus1 + s_i_jminus1;
+      if (sum_s == 0) {
+        continue;
+      }
+      float inv_sum_s = 1.0f / sum_s;  // compute inverse only once to avoid division as much as possible
+
+      grid_vx[index_i_j] = grid_vx[index_i_j] + (divergence * (s_iminus1_j * inv_sum_s));
+      grid_vx[index_iplus1_j] = grid_vx[index_iplus1_j] - (divergence * (s_iplus1_j * inv_sum_s));
+      grid_vy[index_i_j] = grid_vy[index_i_j] + (divergence * (s_i_jminus1 * inv_sum_s));
+      grid_vy[index_i_jplus1] = grid_vy[index_i_jplus1] - (divergence * (s_i_jplus1 * inv_sum_s));
     }
   }
 }

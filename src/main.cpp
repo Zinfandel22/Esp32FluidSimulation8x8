@@ -26,6 +26,11 @@ float gravityY = -GRAVITY_MAGNITUDE;  // default: pointing down
 // reference uses: r = 0.3 * h where h is cell_size
 float particleRadius = 0.0f;
 
+// LED intensity buffers. Particles are splatted into the 8x8 display with
+// bilinear weights, then lightly decayed to hide 8x8 quantization.
+float ledIntensity[NUM_LEDS] = {0.0f};
+float ledNextIntensity[NUM_LEDS] = {0.0f};
+
 // --- Profiling Variables (Time in milliseconds) ---
 float t_integrate = 0;  // Movement & Gravity
 float t_push = 0;       // Particle Separation (Heavy)
@@ -110,24 +115,44 @@ void initializeParticles() {
 
 // function to map particles to led matrix and display
 void visualizeParticles() {
-  matrix.clear();
+  const float cell_size_x = PHYSICAL_WIDTH / GRID_SIZE_X;
+  const float cell_size_y = PHYSICAL_HEIGHT / GRID_SIZE_Y;
+  const float render_min_x = cell_size_x + particleRadius;
+  const float render_min_y = cell_size_y + particleRadius;
+  const float render_max_x = PHYSICAL_WIDTH - cell_size_x - particleRadius;
+  const float render_max_y = PHYSICAL_HEIGHT - cell_size_y - particleRadius;
+  const float led_scale_x = 7.0f / (render_max_x - render_min_x);
+  const float led_scale_y = 7.0f / (render_max_y - render_min_y);
 
-  // create a temporary array to count particles in each LED cell
-  // initialize all counts to 0
-  int ledCounts[NUM_LEDS] = {0};
-
-  // count particles per LED
-  for (int i = 0; i < NUM_PARTICLES; i++) {
-    // convert particle position from meters to led pixel coordinates
-    int led_x = (int)(particles[i].x_pos / PHYSICAL_WIDTH * 8.0f);
-    int led_y = (int)(particles[i].y_pos / PHYSICAL_HEIGHT * 8.0f);
-
-    // ensure we are within grid bounds
-    if (led_x >= 0 && led_x < 8 && led_y >= 0 && led_y < 8) {
-      int led_index = led_y * 8 + led_x;
-      ledCounts[led_index]++;
-    }
+  for (int i = 0; i < NUM_LEDS; i++) {
+    ledNextIntensity[i] = 0.0f;
   }
+
+  // Splat each particle into four LEDs instead of truncating to one LED.
+  // This keeps lower particle counts from looking like hard cell jumps.
+  for (int i = 0; i < NUM_PARTICLES; i++) {
+    float fx = (particles[i].x_pos - render_min_x) * led_scale_x;
+    float fy = (particles[i].y_pos - render_min_y) * led_scale_y;
+
+    fx = utils::clamp(fx, 0.0f, 7.0f);
+    fy = utils::clamp(fy, 0.0f, 7.0f);
+
+    int x0 = (int)fx;
+    int y0 = (int)fy;
+    int x1 = (x0 < 7) ? x0 + 1 : x0;
+    int y1 = (y0 < 7) ? y0 + 1 : y0;
+
+    float tx = fx - x0;
+    float ty = fy - y0;
+    float sx = 1.0f - tx;
+    float sy = 1.0f - ty;
+
+    ledNextIntensity[y0 * 8 + x0] += sx * sy;
+    ledNextIntensity[y0 * 8 + x1] += tx * sy;
+    ledNextIntensity[y1 * 8 + x1] += tx * ty;
+    ledNextIntensity[y1 * 8 + x0] += sx * ty;
+  }
+
   // get current color and brightness from button handler
   uint8_t base_r, base_g, base_b;
   button.getCurrentColorRGB(&base_r, &base_g, &base_b);
@@ -144,15 +169,17 @@ void visualizeParticles() {
 
   // turn on LEDs with scaled colors
   for (int i = 0; i < NUM_LEDS; i++) {
-    if (ledCounts[i] > PARTICLE_THRESHOLD) {
-      // full intensity liquid - use full scaled brightness
-      matrix.setPixelColor(i, matrix.Color(scaled_r, scaled_g, scaled_b));
+    float previous = ledIntensity[i] * 0.72f;
+    float current = ledNextIntensity[i];
+    ledIntensity[i] = (current > previous) ? current : previous;
 
-    } else if (ledCounts[i] >= foam_threshold) {
-      // white foam effect (30% of scaled brightness)
-      uint8_t foam = 0.3f * brightness;
+    if (ledIntensity[i] > PARTICLE_THRESHOLD) {
+      float amount = utils::clamp(ledIntensity[i] / (PARTICLE_THRESHOLD * 2.5f), 0.25f, 1.0f);
+      matrix.setPixelColor(i, matrix.Color((uint8_t)(scaled_r * amount), (uint8_t)(scaled_g * amount),
+                                           (uint8_t)(scaled_b * amount)));
+    } else if (ledIntensity[i] >= foam_threshold) {
+      uint8_t foam = (uint8_t)(0.3f * brightness);
       matrix.setPixelColor(i, matrix.Color(foam, foam, foam));
-
     } else {
       matrix.setPixelColor(i, matrix.Color(0, 0, 0));
     }
@@ -351,12 +378,20 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
   const unsigned long stepInterval = (unsigned long)(FRAME_INTERVAL * 1000.0f);
+  static unsigned long accumulatedTime = 0;
+  const unsigned long maxFrameCatchup = stepInterval * 2;
 
   button.update();
 
   // only run simulation step when enough time has passed for fixed timestep
-  if (currentTime - lastStepTime >= stepInterval) {
-    lastStepTime = currentTime;
+  accumulatedTime += currentTime - lastStepTime;
+  lastStepTime = currentTime;
+  if (accumulatedTime > maxFrameCatchup) {
+    accumulatedTime = maxFrameCatchup;
+  }
+
+  if (accumulatedTime >= stepInterval) {
+    accumulatedTime -= stepInterval;
 
     // read accelerometer and update gravity direction
     updateGravityFromSensor();

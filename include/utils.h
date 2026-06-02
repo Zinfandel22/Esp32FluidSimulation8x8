@@ -12,7 +12,9 @@ inline float __attribute__((always_inline)) clamp(float value, float min_val, fl
 }
 // int version
 inline int __attribute__((always_inline)) clamp(int value, int min_val, int max_val) {
-  return (value < min_val) * min_val + (value >= min_val && value <= max_val) * value + (value > max_val) * max_val;
+  if (value < min_val) return min_val;
+  if (value > max_val) return max_val;
+  return value;
 }
 
 // quake III fast inverse square root algorithm

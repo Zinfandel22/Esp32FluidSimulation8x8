@@ -39,6 +39,8 @@ class Grid {
   float* particle_density;      // density of particles per cell
   float particle_rest_density;  // average density at rest (computed once)
   float particle_radius;        // radius of particles
+  int* liquid_cell_ids;         // compact list of liquid cells for solver iteration
+  int num_liquid_cells;
  public:
   Grid();
 
