@@ -169,7 +169,7 @@ void visualizeParticles() {
 
   // turn on LEDs with scaled colors
   for (int i = 0; i < NUM_LEDS; i++) {
-    float previous = ledIntensity[i] * 0.72f;
+    float previous = ledIntensity[i] * LED_PERSISTENCE;
     float current = ledNextIntensity[i];
     ledIntensity[i] = (current > previous) ? current : previous;
 
