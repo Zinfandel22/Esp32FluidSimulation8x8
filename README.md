@@ -80,7 +80,7 @@ BUTTON_PIN = GPIO 5  // user input (with internal pullup)
 Button is active low (pressed = LOW, released = HIGH)
 
 ## Physical Setup
-The simulation maps a simulated physical container of 500mm500mm to the 8x8 LED grid. The LED matrix serves as a low-resolution display. The QMI8658 accelerometer continuously updates the gravity direction, allowing the fluid to respond naturally to device orientation.
+The simulation uses a 500mm x 500mm virtual container. Particles are constrained inside the solid simulation boundary, and the reachable fluid area is mapped across the full 8x8 LED grid for display. The LED matrix serves as a low-resolution display. The QMI8658 accelerometer continuously updates the gravity direction, allowing the fluid to respond naturally to device orientation.
 
 ## Key Features
 
@@ -88,16 +88,16 @@ The simulation maps a simulated physical container of 500mm500mm to the 8x8 LED 
 
 (* means configurable as parameter in config.h)
 Particle-In-Cell hybrid method combining Lagrangian particles with Eulerian grid:
-- **850 Particles:** hexagonally packed for optimal density, radius = 0.3 * cell_size(*)
-- **32x32 Simulation Grid:** provides velocity field for incompressibility solving(*)
-- **FLIP/PIC Blending:** 90% FLIP + 10% PIC for stability while preserving momentum(*)
+- **400 Particles:** hexagonally packed for optimal density, radius = 0.3 * cell_size(*)
+- **20x20 Simulation Grid:** provides velocity field for incompressibility solving(*)
+- **FLIP/PIC Blending:** 94% FLIP + 6% PIC for stability while preserving momentum(*)
 - **Frame Interval:** 23ms real-time (43.5 fps target)(*)
 - **Physics Timestep:** 27.6ms simulated time per frame (1.2x speed multiplier snappier fluid motion)(*)
 - **Gravity Magnitude:** 9.81 m/s^2, direction updated from accelerometer each frame(*)
 
 ### Incompressibility Solver
 Iterative pressure projection using Gauss-Seidel with successive over-relaxation:
-- **30 Iterations:** balances accuracy vs. computation time (~9.4ms solve time)(*)
+- **15 Iterations:** balances accuracy vs. computation time (~1.5ms solve time)(*)
 - **Over-Relaxation Factor:** 1.9x to accelerate convergence(*)
 - **Density Correction:** compensates for particle drift using K-factor = 1.0(configurable)(*)
 - **Grid Classification:** cells marked as LIQUID, AIR, or WALL based on particle occupancy
@@ -121,7 +121,7 @@ Efficient particle separation using uniform grid acceleration structure:
 - **Collision Detection:** only checks particles in same/adjacent cells (9 cells total)
 - **Separation Force:** pushes particles to minimum separation distance
 - **Memory Layout:** flat arrays (num_cell_particles, first_cell_particle, cell_particle_ids)
-- Significantly faster than O(n²) all-pairs check for 850 particles
+- Significantly faster than O(n²) all-pairs check for 400 particles
 
 ### Bilinear Interpolation
 Smooth velocity transfers between particles and staggered MAC grid:
@@ -153,11 +153,12 @@ Each preset is scaled by current brightness setting (0-255 range)
 
 ### Visualization
 Particle density mapping to LED colors with foam effect:
-- **Liquid Rendering:** cells with >5 particles show full color at current brightness(*)
-- **Foam Effect:** cells with 2-5 particles display white at 30% brightness(*)
+- **Liquid Rendering:** LEDs with intensity above 2.0 show fluid color at current brightness(*)
+- **Foam Effect:** LEDs above the current foam threshold display white at 30% brightness(*)
 - **Brightness Scaling:** base color RGB values multiplied by brightness factor (3-13)(*)
-- **Update Rate:** ~43 fps theoretical max, ~30-35 fps typical with 23ms physics timestep
-- Physical-to-pixel mapping: particle position (meters) → LED coordinates (0-7)
+- **LED Smoothing:** particles are bilinearly splatted into neighboring LEDs with 0.60 frame persistence(*)
+- **Update Rate:** 23ms target frame interval (~43.5 fps), with measured compute headroom up to ~122 fps
+- Physical-to-pixel mapping: reachable particle region (meters) -> LED coordinates (0-7)
 
 ### Accelerometer Integration
 Real-time gravity direction from QMI8658 6-axis IMU:
@@ -172,31 +173,32 @@ Real-time gravity direction from QMI8658 6-axis IMU:
 ## Technical Specifications
 
 ### Performance
-- **Simulation Grid:** 32×32 cells (1024 total)
-- **Display Grid:** 8×8 LEDs (64 total, 1:4 downsampling)
-- **Particle Count:** 850 active particles
+- **Simulation Grid:** 20x20 cells (400 total)
+- **Display Grid:** 8x8 LEDs (64 total, low-resolution fluid projection)
+- **Particle Count:** 400 active particles
 - **Frame Interval:** 23ms target (43.5 fps)
-- **Actual Frame Rate:** 43-46 fps typical
+- **Measured Compute Headroom:** 8.16ms total frame time (~122.5 fps theoretical max)
 - **Frame Breakdown:**
-  - Integration: ~0.05ms
-  - Separation: ~4.9ms
-  - Collision: ~0.21ms
-  - Grid Prep: ~0.51ms
-  - P→G Transfer: ~1.41ms
-  - Density: ~0.53ms
-  - Solver: ~9.4ms
-  - G→P Transfer: ~2.41ms
-  - Visualization: ~2.51ms
-  - **Total:** ~22ms per frame
+  - Integration: ~0.02ms
+  - Separation: ~2.40ms
+  - Collision: ~0.11ms
+  - Grid Prep: ~0.18ms
+  - P->G Transfer: ~0.55ms
+  - Density: ~0.21ms
+  - Solver: ~1.53ms
+  - G->P Transfer: ~1.00ms
+  - Visualization: ~2.16ms
+  - **Total:** ~8.16ms per frame
 
 ### Memory Usage
-- **Particle Array:** 850 · 16 bytes = 13.6 KB
-- **Grid Velocities:** 2 · 1024 · 4 bytes = 8 KB (current + previous)
-- **Weight Accumulators:** 2 · 1024 · 4 bytes = 8 KB
-- **Cell Types:** 1024 ·1 byte = 1 KB
-- **Spatial Hash:** ~10 KB (particle bucketing)
-- **Density Array:** 1024 · 4 bytes = 4 KB
-- **Total:** ~45 KB dynamic allocation
+- **Particle Array:** 400 * 16 bytes = 6.4 KB
+- **Grid Velocities:** 4 * 400 * 4 bytes = 6.4 KB (current + previous)
+- **Weight Accumulators:** 2 * 400 * 4 bytes = 3.2 KB
+- **Cell Types:** 400 cells
+- **Spatial Hash:** ~9 KB (particle bucketing)
+- **Density Array:** 400 * 4 bytes = 1.6 KB
+- **Liquid Cell List:** 400 * 4 bytes = 1.6 KB
+- **Total:** ~30 KB for the main simulation arrays
 
 ### Compiler Optimizations
 Aggressive optimization flags for maximum performance:
@@ -217,8 +219,8 @@ Implemented following Ten Minute Physics tutorial closely (https://www.youtube.c
 - **Transfer P→G:** particles scatter velocities to grid with bilinear interpolation
 - **Solve Pressure:** grid velocities adjusted to satisfy â‹…u = 0
 - **Transfer G→P:** particles updated with FLIP/PIC blend:
-  - **PIC (10%):** vnew = vgrid (dissipative, stable)
-  - **FLIP (90%):** vnew = vold + (vgrid - vgrid_old) (preserves momentum)
+  - **PIC (6%):** vnew = vgrid (dissipative, stable)
+  - **FLIP (94%):** vnew = vold + (vgrid - vgrid_old) (preserves momentum)
 
 ### Pressure Projection
 - **Divergence Calculation:** sum of velocity flux through cell faces
@@ -229,7 +231,7 @@ Implemented following Ten Minute Physics tutorial closely (https://www.youtube.c
 
 ### Particle Collision
 Handles boundaries with configurable restitution and friction:
-- **Wall Detection:** clamp position to [particle_radius, domain_size - particle_radius]
+- **Wall Detection:** clamp position one simulation cell plus particle_radius inside the domain
 - **Restitution Factor:** 0.2 (20% velocity preserved on bounce)(*)
 - **Friction Factor:** 0.2 (20% tangential velocity preserved)(*)
 - **Clamping:** prevents particles from penetrating walls
@@ -244,16 +246,24 @@ platform = espressif32
 board = esp32-s3-devkitc-1
 framework = arduino
 
+; CRITICAL: Flash configuration for ESP32-S3-Matrix
 board_build.flash_mode = dio
 board_build.flash_size = 4MB
+board_build.partitions = default.csv
+board_upload.flash_size = 4MB
+
+; 1. Hardware Accelerations
 board_build.f_cpu = 240000000L
+board_build.f_flash = 80000000L
 
 build_flags = 
     -DARDUINO_USB_CDC_ON_BOOT=1
+    ; compiler optimizations
     -O3
     -ffast-math
     -funroll-loops
     -fomit-frame-pointer
+    ; disable debug overhead
     -DCORE_DEBUG_LEVEL=0
     
 monitor_speed = 115200
@@ -263,7 +273,7 @@ lib_deps =
     adafruit/Adafruit NeoPixel@^1.12.0
 ```
 
-Upload with default PlatformIO settings - no special bootloader or partition table required.
+Flash mode and size are pinned explicitly since this board's flash chip isn't always autodetected correctly; the partition table uses PlatformIO's standard `default.csv` scheme.
 
 ## Configuration Options
 
@@ -274,30 +284,31 @@ All simulation parameters can be adjusted in `config.h`:
 GRAVITY_MAGNITUDE = 9.81f          // m/s²
 FRAME_INTERVAL = 0.023f            // base timestep
 SPEED_MULTIPLIER = 1.2f            // time acceleration
-FLIP_RATIO = 0.9f                  // FLIP vs PIC blend
-INCOMPRESSIBILITY_ITERATIONS = 30  // solver iterations
+FLIP_RATIO = 0.94f                 // FLIP vs PIC blend
+INCOMPRESSIBILITY_ITERATIONS = 15  // solver iterations
 OVERRELAXATION = 1.9f              // convergence acceleration
 ```
 
 ### Particle Settings
 ```cpp
-NUM_PARTICLES = 850                // total particle count
+NUM_PARTICLES = 400                // total particle count
 RESTITUTION_FACTOR = 0.2f          // bounce coefficient
 FRICTION_FACTOR = 0.2f             // wall friction
 ```
 
 ### Grid Resolution
 ```cpp
-GRID_SIZE_X = 32                   // simulation cells
-GRID_SIZE_Y = 32
+GRID_SIZE_X = 20                   // simulation cells
+GRID_SIZE_Y = 20
 PHYSICAL_WIDTH = 0.5f              // meters
 PHYSICAL_HEIGHT = 0.5f
 ```
 
 ### Visualization
 ```cpp
-PARTICLE_THRESHOLD = 5.0f          // min particles for liquid color
-PARTICLE_THRESHOLD_FOAM = 5.0f     // foam threshold (overridden by button)
+PARTICLE_THRESHOLD = 2.0f          // min LED intensity for liquid color
+LED_PERSISTENCE = 0.60f            // display smoothing decay
+// Foam thresholds: 30, 5, 4, 3, 2  // configured in button presets
 ```
 
 ## Usage

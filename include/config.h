@@ -47,7 +47,7 @@
 #define FRAME_INTERVAL 0.023f                        // real time between frames
 #define SPEED_MULTIPLIER 1.2f                        // adjust this to control speed
 #define DELTA_T (FRAME_INTERVAL * SPEED_MULTIPLIER)  // physics timestep
-#define FLIP_RATIO 0.9f                              // flip vs pic ratio
+#define FLIP_RATIO 0.94f                             // flip vs pic ratio
 #define INCOMPRESSIBILITY_ITERATIONS 15              // number of incompressibility iterations
 #define OVERRELAXATION 1.9f                          // overrelaxation factor to speed up convergence
 #define K_FACTOR 1.0f                                // stiffness factor for density correction
@@ -67,6 +67,7 @@
 
 // visualization
 #define PARTICLE_THRESHOLD 2.0f
+#define LED_PERSISTENCE 0.60f
 //#define PARTICLE_THRESHOLD_FOAM 5.0f  configurable with the button
 
 #endif

@@ -185,25 +185,11 @@ void visualizeParticles()
 
   int foam_threshold = button.getCurrentFoamThreshold();
 
-  // 1. Calculate and normalize the current gravity vector orientation
-  float g_mag = sqrtf(gravityX * gravityX + gravityY * gravityY);
-  float nx = 0.0f;
-  float ny = -1.0f; // Default baseline direction
-  if (g_mag > 0.001f)
-  {
-    nx = gravityX / g_mag;
-    ny = gravityY / g_mag;
-  }
-
-  // 2. Render LEDs using vector dot products mapped dynamically to screen space
-  for (int y = 0; y < 8; y++)
-  {
-    for (int x = 0; x < 8; x++)
-    {
-      int i = y * 8 + x;
-      float previous = ledIntensity[i] * 0.72f;
-      float current = ledNextIntensity[i];
-      ledIntensity[i] = (current > previous) ? current : previous;
+  // turn on LEDs with scaled colors
+  for (int i = 0; i < NUM_LEDS; i++) {
+    float previous = ledIntensity[i] * 0.72f;
+    float current = ledNextIntensity[i];
+    ledIntensity[i] = (current > previous) ? current : previous;
 
       if (ledIntensity[i] > PARTICLE_THRESHOLD)
       {
