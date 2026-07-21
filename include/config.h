@@ -27,7 +27,7 @@
 //#define QMI8658_TEMP_L 0x33
 
 //button
-#define BUTTON_PIN 5
+#define BUTTON_PIN 0
 
 // timing thresholds in milliseconds
 #define DEBOUNCE_TIME 25
